@@ -20,9 +20,11 @@ import {
   Clock,
   XCircle,
   Headphones,
-  Sliders
+  Sliders,
+  Mail,
+  ExternalLink
 } from 'lucide-react';
-import { AppUser, UserPermissions, UserRole, UserStatus, ROLE_DEFAULT_PERMISSIONS } from '../../types/auth';
+import { AppUser, UserPermissions, UserRole, UserStatus, ROLE_DEFAULT_PERMISSIONS, GMAIL_INBOX_URL } from '../../types/auth';
 
 interface AdminUserManagementTabProps {
   currentUser: AppUser;
@@ -58,7 +60,8 @@ export const AdminUserManagementTab: React.FC<AdminUserManagementTabProps> = ({
   const [newRole, setNewRole] = useState<UserRole>('CUSTOMER_SERVICE');
   const [newInitialStatus, setNewInitialStatus] = useState<UserStatus>('APPROVED');
 
-  const pendingCount = users.filter(u => u.status === 'PENDING').length;
+  const pendingUsers = users.filter(u => u.status === 'PENDING');
+  const pendingCount = pendingUsers.length;
 
   const filteredUsers = users.filter(u => {
     const userId = u.id || u.uid || '';
@@ -155,15 +158,104 @@ export const AdminUserManagementTab: React.FC<AdminUserManagementTabProps> = ({
             </div>
           </div>
 
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-indigo-600/30 transition-all cursor-pointer shrink-0"
-          >
-            <UserPlus className="h-4 w-4" />
-            <span>Create New User & Options</span>
-          </button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <a
+              href={GMAIL_INBOX_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="px-3.5 py-2.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
+              title="Open Master Admin Gmail to Review Requests"
+            >
+              <Mail className="h-4 w-4 text-rose-400" />
+              <span>Open Master Admin Gmail to Review Requests</span>
+              <ExternalLink className="h-3 w-3" />
+            </a>
+
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-indigo-600/30 transition-all cursor-pointer shrink-0"
+            >
+              <UserPlus className="h-4 w-4" />
+              <span>Create New User & Options</span>
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* Prominent Pending Account Requests Approval Box */}
+      {pendingUsers.length > 0 && (
+        <div className="bg-amber-950/40 border-2 border-amber-500/50 rounded-2xl p-5 shadow-lg space-y-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="h-8 w-8 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
+                <Clock className="h-4 w-4" />
+              </div>
+              <div>
+                <h4 className="font-bold text-sm text-amber-200">
+                  Pending Account Requests ({pendingUsers.length})
+                </h4>
+                <p className="text-xs text-amber-300/80">
+                  New users awaiting Master Admin verification before accessing the warehouse.
+                </p>
+              </div>
+            </div>
+
+            <a
+              href={GMAIL_INBOX_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="px-3 py-1.5 bg-amber-500 text-slate-950 hover:bg-amber-400 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 shadow-sm cursor-pointer"
+            >
+              <Mail className="h-3.5 w-3.5" />
+              <span>Open Master Admin Gmail to Review Requests</span>
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {pendingUsers.map(pUser => {
+              const pId = pUser.id || pUser.uid || '';
+              return (
+                <div key={pId} className="bg-slate-900/90 border border-amber-500/30 rounded-xl p-3.5 flex flex-col justify-between gap-3">
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-100 text-sm">
+                        {pUser.name || pUser.displayName}
+                      </span>
+                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold">
+                        {pUser.role}
+                      </span>
+                    </div>
+                    <div className="text-xs text-slate-400 font-mono mt-0.5">
+                      {pUser.email}
+                    </div>
+                    <div className="text-[10px] text-slate-500 mt-1 flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      <span>Requested: {new Date(pUser.createdAt).toLocaleDateString()} at {new Date(pUser.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-2 border-t border-slate-800">
+                    <button
+                      onClick={() => onUpdateUserStatus(pId, 'APPROVED')}
+                      className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors shadow-sm"
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      <span>Approve Access</span>
+                    </button>
+                    <button
+                      onClick={() => onUpdateUserStatus(pId, 'REJECTED')}
+                      className="px-3 py-1.5 bg-rose-950 hover:bg-rose-900 text-rose-300 border border-rose-500/40 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
+                    >
+                      <span>Reject</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Status Filter Tabs & Search Bar */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">

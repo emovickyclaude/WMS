@@ -7,7 +7,7 @@ interface FormulaBannerProps {
 }
 
 export const FormulaBanner: React.FC<FormulaBannerProps> = ({ selectedItem }) => {
-  const [testMin, setTestMin] = useState<number>(50);
+  const [testMin, setTestMin] = useState<number>(10);
   const [testBal, setTestBal] = useState<number>(4);
   const [testPo, setTestPo] = useState<number>(2);
   const [isInteractive, setIsInteractive] = useState<boolean>(false);
@@ -33,7 +33,7 @@ export const FormulaBanner: React.FC<FormulaBannerProps> = ({ selectedItem }) =>
                 Core Shortage Calculation Engine
               </h3>
               <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-mono">
-                Preset (50)
+                Preset (10)
               </span>
             </div>
             <p className="text-xs text-slate-400 flex items-center gap-1.5 mt-0.5">
@@ -45,7 +45,7 @@ export const FormulaBanner: React.FC<FormulaBannerProps> = ({ selectedItem }) =>
                   </span>
                 </>
               ) : (
-                'Shortage Qty = Preset Min Stock (50) − Stock Balance − Extra PO Stock'
+                'Shortage Qty = Preset Min Stock (10) − Stock Balance − Extra PO Stock'
               )}
             </p>
           </div>

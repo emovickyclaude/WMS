@@ -2,7 +2,7 @@ export interface InventoryItem {
   isbn: string;
   title: string;
   category: string;
-  presetMinStock: number; // Minimum Required Stock preset (50 copies benchmark)
+  presetMinStock: number; // Minimum Required Stock preset (default 10 units)
   stockBalance: number;   // Current physical on-hand inventory
   extraPoStock: number;   // Outstanding purchase orders expected
   supplier: string;

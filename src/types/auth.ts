@@ -40,15 +40,17 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, UserPermissions> = {
     canResetDefaults: false,
   },
   CUSTOMER_SERVICE: {
-    canUploadStockBalance: true,
-    canUploadExtraPo: true,
-    canEditPresetMinStock: false,
-    canCreatePo: false,
-    canManageUsers: false,
-    canExportData: true,
+    canUploadStockBalance: false, // Strict View-Only Access
+    canUploadExtraPo: false,      // Strict View-Only Access
+    canEditPresetMinStock: false, // Strict View-Only Access
+    canCreatePo: false,           // Strict View-Only Access
+    canManageUsers: false,        // Strict View-Only Access
+    canExportData: true,          // View-only report inspection & export
     canResetDefaults: false,
   },
 };
+
+export const GMAIL_INBOX_URL = 'https://mail.google.com/mail/u/0/?tab=rm&ogbl#inbox';
 
 export const INITIAL_USERS: AppUser[] = [
   {
@@ -64,22 +66,10 @@ export const INITIAL_USERS: AppUser[] = [
     createdAt: new Date().toISOString(),
   },
   {
-    id: 'user-master-legacy',
-    uid: 'user-master-legacy',
-    name: 'Master Administrator (LogiFlow)',
-    displayName: 'Master Administrator',
-    email: 'master@logiflow.io',
-    role: 'MASTER_ADMIN',
-    status: 'APPROVED',
-    permissions: { ...ROLE_DEFAULT_PERMISSIONS.MASTER_ADMIN },
-    password: 'MasterAdmin123!',
-    createdAt: new Date().toISOString(),
-  },
-  {
     id: 'user-admin-02',
     uid: 'user-admin-02',
-    name: 'System Admin',
-    displayName: 'System Admin',
+    name: 'Warehouse Operations Admin',
+    displayName: 'Operations Admin',
     email: 'admin@logiflow.io',
     role: 'ADMIN',
     status: 'APPROVED',
@@ -90,8 +80,8 @@ export const INITIAL_USERS: AppUser[] = [
   {
     id: 'user-cs-03',
     uid: 'user-cs-03',
-    name: 'Customer Service Representative',
-    displayName: 'Customer Service',
+    name: 'Customer Support Representative',
+    displayName: 'Support Staff',
     email: 'cs@logiflow.io',
     role: 'CUSTOMER_SERVICE',
     status: 'APPROVED',
@@ -102,13 +92,13 @@ export const INITIAL_USERS: AppUser[] = [
   {
     id: 'user-pending-04',
     uid: 'user-pending-04',
-    name: 'New Applicant (Pending Review)',
-    displayName: 'New Applicant',
+    name: 'Sarah Jenkins (New Applicant)',
+    displayName: 'Sarah Jenkins',
     email: 'newstaff@logiflow.io',
     role: 'CUSTOMER_SERVICE',
     status: 'PENDING',
     permissions: { ...ROLE_DEFAULT_PERMISSIONS.CUSTOMER_SERVICE },
     password: 'Staff123Password!',
-    createdAt: new Date().toISOString(),
+    createdAt: new Date(Date.now() - 3600000 * 4).toISOString(),
   },
 ];

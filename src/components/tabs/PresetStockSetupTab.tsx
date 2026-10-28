@@ -97,14 +97,24 @@ export const PresetStockSetupTab: React.FC<PresetStockSetupTabProps> = ({
 
           <div className="flex flex-wrap items-center gap-2">
             {onSetAllMinStock && (
-              <button
-                onClick={() => onSetAllMinStock(50)}
-                className="px-3 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/50 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm"
-                title="Reset all book titles to maintain 50 copies safety stock preset as per Minimum Qty.xlsx"
-              >
-                <ShieldCheck className="h-3.5 w-3.5 text-amber-400" />
-                <span>Maintain 50 Copies (Preset All)</span>
-              </button>
+              <>
+                <button
+                  onClick={() => onSetAllMinStock(10)}
+                  className="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm"
+                  title="Preset all book titles to 10 copies safety stock (Default Requirement)"
+                >
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  <span>Preset All to 10 Units</span>
+                </button>
+                <button
+                  onClick={() => onSetAllMinStock(50)}
+                  className="px-3 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/50 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm"
+                  title="Reset all book titles to maintain 50 copies safety stock preset as per Minimum Qty.xlsx"
+                >
+                  <ShieldCheck className="h-3.5 w-3.5 text-amber-400" />
+                  <span>Preset All to 50 Units</span>
+                </button>
+              </>
             )}
 
             <button

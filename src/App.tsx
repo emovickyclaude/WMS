@@ -14,7 +14,11 @@ import {
   LogOut,
   Shield,
   KeyRound,
-  Info
+  Info,
+  Mail,
+  ExternalLink,
+  Eye,
+  Clock
 } from 'lucide-react';
 import { 
   InventoryItem, 
@@ -28,7 +32,8 @@ import {
   UserPermissions, 
   UserRole, 
   INITIAL_USERS,
-  ROLE_DEFAULT_PERMISSIONS
+  ROLE_DEFAULT_PERMISSIONS,
+  GMAIL_INBOX_URL
 } from './types/auth';
 import { INITIAL_INVENTORY } from './data/initialData';
 import { FormulaBanner } from './components/FormulaBanner';
@@ -36,17 +41,18 @@ import { UploadModal } from './components/UploadModal';
 import { SupplierPoModal } from './components/SupplierPoModal';
 import { AddEditSkuModal } from './components/AddEditSkuModal';
 import { AuthModal } from './components/AuthModal';
+import { LandingAuthView } from './components/LandingAuthView';
 import { OrderRequisitionTab } from './components/tabs/OrderRequisitionTab';
 import { PresetStockSetupTab } from './components/tabs/PresetStockSetupTab';
 import { DualUploadCenterTab } from './components/tabs/DualUploadCenterTab';
 import { PoHistoryTab } from './components/tabs/PoHistoryTab';
 import { AdminUserManagementTab } from './components/tabs/AdminUserManagementTab';
 
-const STORAGE_KEY_ITEMS = 'logiflow_wms_phase1_inventory_preset50_v11';
-const STORAGE_KEY_POS = 'logiflow_wms_phase1_pos_preset50_v11';
-const STORAGE_KEY_LOGS = 'logiflow_wms_phase1_upload_logs_preset50_v11';
-const STORAGE_KEY_USERS = 'logiflow_wms_phase1_users_preset50_v11';
-const STORAGE_KEY_CURRENT_USER = 'logiflow_wms_phase1_current_user_preset50_v11';
+const STORAGE_KEY_ITEMS = 'logiflow_wms_phase1_inventory_preset10_v16';
+const STORAGE_KEY_POS = 'logiflow_wms_phase1_pos_preset10_v16';
+const STORAGE_KEY_LOGS = 'logiflow_wms_phase1_upload_logs_preset10_v16';
+const STORAGE_KEY_USERS = 'logiflow_wms_phase1_users_preset10_v16';
+const STORAGE_KEY_CURRENT_USER = 'logiflow_wms_phase1_current_user_preset10_v16';
 
 export default function App() {
   // Users state
@@ -508,24 +514,31 @@ export default function App() {
     showToast(`Switched active session to: ${user.displayName || user.name} (${user.role})`);
   };
 
-  // ================= AUTH MODAL HANDLERS =================
-  const handleAuthLogin = (email: string, pass: string): boolean => {
+  // ================= AUTH MODAL & LANDING HANDLERS =================
+  const handleAuthLogin = (email: string, pass: string): { success: boolean; errorReason?: 'PENDING' | 'REJECTED' | 'INVALID' } => {
     const cleanEmail = email.trim().toLowerCase();
     const cleanPass = pass.trim();
     const found = users.find(u => u.email.toLowerCase() === cleanEmail);
-    if (!found) return false;
-    if (found.password && found.password !== cleanPass) return false;
-    if (found.status !== 'APPROVED') return false;
+    if (!found) return { success: false, errorReason: 'INVALID' };
+    if (found.password && found.password !== cleanPass) return { success: false, errorReason: 'INVALID' };
+    if (found.status === 'PENDING') return { success: false, errorReason: 'PENDING' };
+    if (found.status === 'REJECTED') return { success: false, errorReason: 'REJECTED' };
 
     setCurrentUser(found);
+    localStorage.setItem(STORAGE_KEY_CURRENT_USER, JSON.stringify(found));
     showToast(`Welcome back, ${found.displayName || found.name}! Signed in as ${found.role.replace('_', ' ')}.`);
-    return true;
+    return { success: true };
   };
 
-  const handleAuthRegister = (name: string, email: string, role: UserRole) => {
+  const handleAuthRegister = (name: string, email: string, role: UserRole, pass?: string): { success: boolean; message?: string } => {
+    const cleanEmail = email.trim().toLowerCase();
+    const exists = users.find(u => u.email.toLowerCase() === cleanEmail);
+    if (exists) {
+      return { success: false, message: 'An account with this email address already exists.' };
+    }
+
     const newId = `user-${Date.now()}`;
     const cleanName = name.trim();
-    const cleanEmail = email.trim().toLowerCase();
     const newUser: AppUser = {
       id: newId,
       uid: newId,
@@ -535,18 +548,40 @@ export default function App() {
       role: role,
       status: 'PENDING',
       permissions: { ...ROLE_DEFAULT_PERMISSIONS[role] },
-      password: 'Staff123Password!',
+      password: pass || 'Staff123Password!',
       createdAt: new Date().toISOString(),
     };
-    setUsers(prev => [newUser, ...prev]);
+    const updatedUsers = [newUser, ...users];
+    setUsers(updatedUsers);
+    localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(updatedUsers));
     showToast(`Registration request for ${cleanEmail} submitted. Status: PENDING.`);
+    return { success: true };
   };
 
   const handleAuthLogout = () => {
     setCurrentUser(null);
-    setIsLoginModalOpen(true);
-    showToast('Signed out of warehouse session.');
+    localStorage.setItem(STORAGE_KEY_CURRENT_USER, 'signed_out');
+    showToast('Signed out of warehouse session. Returning to secure landing.');
   };
+
+  // If user is not authenticated, render secure landing and login view ONLY
+  if (!currentUser) {
+    return (
+      <>
+        <LandingAuthView
+          users={users}
+          onLogin={handleAuthLogin}
+          onRegister={handleAuthRegister}
+        />
+        {toastMessage && (
+          <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl border border-slate-700 flex items-center gap-2.5 text-xs font-medium animate-fade-in">
+            <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+            <span>{toastMessage}</span>
+          </div>
+        )}
+      </>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors selection:bg-indigo-500 selection:text-white">
@@ -576,7 +611,7 @@ export default function App() {
                     Order Management
                   </span>
                   <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-semibold">
-                    Preset: 50 Copies
+                    Preset: 10 Units
                   </span>
                 </div>
                 <p className="text-xs text-slate-400">
@@ -655,8 +690,33 @@ export default function App() {
                 </div>
               </button>
 
+              {/* Master Admin Gmail Inbox Link */}
+              <a
+                href={GMAIL_INBOX_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="px-3 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+                title="Open Master Admin Gmail to Review Requests"
+              >
+                <Mail className="h-3.5 w-3.5 text-rose-400" />
+                <span className="hidden xl:inline">Master Admin Gmail</span>
+                <ExternalLink className="h-3 w-3 text-rose-400/80" />
+              </a>
+
+              {/* Pending Approvals Badge for Admins */}
+              {currentPermissions.canManageUsers && users.filter(u => u.status === 'PENDING').length > 0 && (
+                <button
+                  onClick={() => setActiveTab('admin_users')}
+                  className="px-2.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer animate-pulse"
+                  title="Review pending warehouse account applications"
+                >
+                  <Clock className="h-3.5 w-3.5 text-amber-400" />
+                  <span>{users.filter(u => u.status === 'PENDING').length} Pending</span>
+                </button>
+              )}
+
               {/* USER PROFILE & PERMISSIONS POPUP */}
-              {currentUser ? (
+              {currentUser && (
                 <div className="relative">
                   <div
                     onClick={() => setShowPermissionsTooltip(!showPermissionsTooltip)}
@@ -704,7 +764,7 @@ export default function App() {
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
-                          <span>🛡️ Edit Preset 50 Safety Stock</span>
+                          <span>🛡️ Edit Preset 10 Safety Stock</span>
                           <span className={currentPermissions.canEditPresetMinStock ? 'text-emerald-500 font-bold' : 'text-slate-400'}>
                             {currentPermissions.canEditPresetMinStock ? 'Allowed' : 'Disabled'}
                           </span>
@@ -737,37 +797,32 @@ export default function App() {
                           }}
                           className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 font-semibold cursor-pointer"
                         >
-                          <LogIn className="h-3 w-3" /> Account & Security
+                          <LogIn className="h-3 w-3" /> Switch User
                         </button>
 
                         <button
-                          onClick={() => setShowPermissionsTooltip(false)}
-                          className="text-xs text-slate-400 hover:text-slate-600 cursor-pointer"
+                          onClick={() => {
+                            setShowPermissionsTooltip(false);
+                            handleAuthLogout();
+                          }}
+                          className="text-xs text-rose-500 hover:underline flex items-center gap-1 cursor-pointer font-semibold"
                         >
-                          Close
+                          <LogOut className="h-3 w-3" /> Sign Out
                         </button>
                       </div>
                     </div>
                   )}
                 </div>
-              ) : (
-                <button
-                  onClick={() => setIsLoginModalOpen(true)}
-                  className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-colors cursor-pointer"
-                >
-                  <LogIn className="h-3.5 w-3.5" />
-                  <span>Sign In</span>
-                </button>
               )}
 
-              {/* Login / Access Modal Button */}
+              {/* Direct Sign Out Button */}
               <button
-                onClick={() => setIsLoginModalOpen(true)}
-                className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs flex items-center gap-1 transition-colors cursor-pointer"
-                title="LogiFlow Access Control (Sign in, Register, Switch User)"
+                onClick={handleAuthLogout}
+                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+                title="Sign out of current warehouse session"
               >
-                <KeyRound className="h-3.5 w-3.5 text-indigo-400" />
-                <span className="hidden sm:inline">Access</span>
+                <LogOut className="h-3.5 w-3.5 text-rose-400" />
+                <span className="hidden sm:inline">Sign Out</span>
               </button>
             </div>
           </div>
@@ -816,12 +871,29 @@ export default function App() {
 
             <div className="flex items-center gap-2 shrink-0">
               <span className="text-[11px] text-slate-500 font-mono">
-                Formula: 50 Min − Balance − PO = Shortage
+                Formula: 10 Min − Balance − PO = Shortage
               </span>
             </div>
           </div>
         </div>
       </header>
+
+      {/* Customer Service Role Notice Banner */}
+      {currentUser.role === 'CUSTOMER_SERVICE' && (
+        <div className="bg-cyan-950/80 border-b border-cyan-800/80 py-2.5 px-4 text-xs text-cyan-200 shadow-inner">
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Eye className="h-4 w-4 text-cyan-400 shrink-0" />
+              <span>
+                <strong>Customer Services Mode:</strong> You have strict <strong>View-Only Access</strong> to inspect Cambridge & Oxford book inventory, shortage calculations, and order history. File uploads and purchase orders are restricted to Administrators.
+              </span>
+            </div>
+            <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-cyan-900/90 text-cyan-300 border border-cyan-700 font-semibold shrink-0">
+              Read-Only
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* MAIN CONTAINER */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
@@ -1021,7 +1093,7 @@ export default function App() {
 
           <div className="flex items-center gap-4 text-[11px]">
             <span>Active Account: <strong className="text-slate-700 dark:text-slate-200">{currentUser ? (currentUser.name || currentUser.displayName) : 'Signed Out'}</strong> ({currentUser ? currentUser.role : 'Guest'})</span>
-            <span>· Formula: <code>50 Min − Balance − PO = Shortage</code></span>
+            <span>· Formula: <code>10 Min − Balance − PO = Shortage</code></span>
             {currentPermissions.canResetDefaults && (
               <button
                 onClick={handleResetDefaults}

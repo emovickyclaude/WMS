@@ -22,8 +22,8 @@ interface AuthModalProps {
   isOpen: boolean;
   currentUser: User | null;
   pendingUsers: User[];
-  onLogin: (email: string, pass: string) => boolean;
-  onRegister: (name: string, email: string, role: UserRole) => void;
+  onLogin: (email: string, pass: string) => boolean | { success: boolean; errorReason?: 'PENDING' | 'REJECTED' | 'INVALID' };
+  onRegister: (name: string, email: string, role: UserRole, pass?: string) => void;
   onLogout: () => void;
   onClose: () => void;
   onOpenUserManagement: () => void;
@@ -54,9 +54,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
-    const success = onLogin(email.trim(), password);
+    const res = onLogin(email.trim(), password);
+    const success = typeof res === 'boolean' ? res : res.success;
     if (!success) {
-      setErrorMsg('Invalid credentials or account pending master admin approval.');
+      const reason = typeof res === 'object' && res.errorReason ? res.errorReason : null;
+      if (reason === 'PENDING') {
+        setErrorMsg('Your account request has been submitted to the Master Admin for review. Once approved, you will be able to log in with your credentials.');
+      } else if (reason === 'REJECTED') {
+        setErrorMsg('This account registration was reviewed and rejected by the Master Admin.');
+      } else {
+        setErrorMsg('Invalid email or password.');
+      }
     } else {
       onClose();
     }
@@ -71,7 +79,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setErrorMsg(null);
     setLastRegisteredName(name.trim());
     setLastRegisteredEmail(email.trim());
-    onRegister(name.trim(), email.trim(), regRole);
+    onRegister(name.trim(), email.trim(), regRole, password);
     setRegisteredPending(true);
   };
 
@@ -79,7 +87,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setEmail('master@admin.com');
     setPassword('admin123');
     setErrorMsg(null);
-    const success = onLogin('master@admin.com', 'admin123');
+    const res = onLogin('master@admin.com', 'admin123');
+    const success = typeof res === 'boolean' ? res : res.success;
     if (success) {
       onClose();
     }
