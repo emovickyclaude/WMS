@@ -21,10 +21,9 @@ import {
   XCircle,
   Headphones,
   Sliders,
-  Mail,
-  ExternalLink
+  Eye,
 } from 'lucide-react';
-import { AppUser, UserPermissions, UserRole, UserStatus, ROLE_DEFAULT_PERMISSIONS, GMAIL_INBOX_URL } from '../../types/auth';
+import { AppUser, UserPermissions, UserRole, UserStatus, ROLE_DEFAULT_PERMISSIONS } from '../../types/auth';
 
 interface AdminUserManagementTabProps {
   currentUser: AppUser;
@@ -32,6 +31,7 @@ interface AdminUserManagementTabProps {
   onUpdateUserPermissions: (id: string, newPermissions: UserPermissions) => void;
   onUpdateUserRole: (id: string, newRole: UserRole) => void;
   onUpdateUserStatus: (id: string, newStatus: UserStatus) => void;
+  onApproveUserWithRole: (id: string, role: UserRole) => void;
   onUpdateUserPassword: (id: string, newPass: string) => void;
   onCreateUser: (newUser: AppUser) => void;
   onSwitchUser: (user: AppUser) => void;
@@ -43,6 +43,7 @@ export const AdminUserManagementTab: React.FC<AdminUserManagementTabProps> = ({
   onUpdateUserPermissions,
   onUpdateUserRole,
   onUpdateUserStatus,
+  onApproveUserWithRole,
   onUpdateUserPassword,
   onCreateUser,
   onSwitchUser,
@@ -159,18 +160,6 @@ export const AdminUserManagementTab: React.FC<AdminUserManagementTabProps> = ({
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            <a
-              href={GMAIL_INBOX_URL}
-              target="_blank"
-              rel="noreferrer"
-              className="px-3.5 py-2.5 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm"
-              title="Open Master Admin Gmail to Review Requests"
-            >
-              <Mail className="h-4 w-4 text-rose-400" />
-              <span>Open Master Admin Gmail to Review Requests</span>
-              <ExternalLink className="h-3 w-3" />
-            </a>
-
             <button
               onClick={() => setShowCreateModal(true)}
               className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-md shadow-indigo-600/30 transition-all cursor-pointer shrink-0"
@@ -195,35 +184,28 @@ export const AdminUserManagementTab: React.FC<AdminUserManagementTabProps> = ({
                   Pending Account Requests ({pendingUsers.length})
                 </h4>
                 <p className="text-xs text-amber-300/80">
-                  New users awaiting Master Admin verification before accessing the warehouse.
+                  Review applicant details and explicitly determine which operational role to grant.
                 </p>
               </div>
             </div>
 
-            <a
-              href={GMAIL_INBOX_URL}
-              target="_blank"
-              rel="noreferrer"
-              className="px-3 py-1.5 bg-amber-500 text-slate-950 hover:bg-amber-400 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 shadow-sm cursor-pointer"
-            >
-              <Mail className="h-3.5 w-3.5" />
-              <span>Open Master Admin Gmail to Review Requests</span>
-              <ExternalLink className="h-3 w-3" />
-            </a>
+            <div className="text-xs text-amber-300/90 font-mono bg-amber-900/40 px-3 py-1 rounded-lg border border-amber-500/30">
+              Master Admin Role Assignment Required
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
             {pendingUsers.map(pUser => {
               const pId = pUser.id || pUser.uid || '';
               return (
-                <div key={pId} className="bg-slate-900/90 border border-amber-500/30 rounded-xl p-3.5 flex flex-col justify-between gap-3">
+                <div key={pId} className="bg-slate-900/95 border border-amber-500/40 rounded-xl p-4 flex flex-col justify-between gap-3 shadow-md">
                   <div>
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-slate-100 text-sm">
                         {pUser.name || pUser.displayName}
                       </span>
                       <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold">
-                        {pUser.role}
+                        PENDING APPROVAL
                       </span>
                     </div>
                     <div className="text-xs text-slate-400 font-mono mt-0.5">
@@ -231,24 +213,44 @@ export const AdminUserManagementTab: React.FC<AdminUserManagementTabProps> = ({
                     </div>
                     <div className="text-[10px] text-slate-500 mt-1 flex items-center gap-1">
                       <Clock className="h-3 w-3" />
-                      <span>Requested: {new Date(pUser.createdAt).toLocaleDateString()} at {new Date(pUser.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      <span>Applied: {new Date(pUser.createdAt).toLocaleDateString()} at {new Date(pUser.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 pt-2 border-t border-slate-800">
-                    <button
-                      onClick={() => onUpdateUserStatus(pId, 'APPROVED')}
-                      className="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors shadow-sm"
-                    >
-                      <CheckCircle2 className="h-3.5 w-3.5" />
-                      <span>Approve Access</span>
-                    </button>
-                    <button
-                      onClick={() => onUpdateUserStatus(pId, 'REJECTED')}
-                      className="px-3 py-1.5 bg-rose-950 hover:bg-rose-900 text-rose-300 border border-rose-500/40 rounded-lg text-xs font-semibold cursor-pointer transition-colors"
-                    >
-                      <span>Reject</span>
-                    </button>
+                  {/* Role Assignment Action Group */}
+                  <div className="pt-3 border-t border-slate-800 space-y-2">
+                    <span className="text-[11px] font-semibold text-slate-300 block">
+                      Determine & Assign Role:
+                    </span>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => onApproveUserWithRole(pId, 'ADMIN')}
+                        className="py-2 px-2.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/50 rounded-lg text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors shadow-sm text-center"
+                        title="Grant full Admin rights: CSV uploads, safety stock edits, and PO dispatch"
+                      >
+                        <Sliders className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                        <span>Approve as Admin</span>
+                      </button>
+
+                      <button
+                        onClick={() => onApproveUserWithRole(pId, 'CUSTOMER_SERVICE')}
+                        className="py-2 px-2.5 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/50 rounded-lg text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition-colors shadow-sm text-center"
+                        title="Grant Customer Services rights: Strict view-only access"
+                      >
+                        <Eye className="h-3.5 w-3.5 text-cyan-400 shrink-0" />
+                        <span>Approve as CS</span>
+                      </button>
+                    </div>
+
+                    <div className="flex justify-end pt-1">
+                      <button
+                        onClick={() => onUpdateUserStatus(pId, 'REJECTED')}
+                        className="text-[11px] text-rose-400 hover:text-rose-300 hover:underline cursor-pointer transition-colors flex items-center gap-1"
+                      >
+                        <XCircle className="h-3 w-3" />
+                        <span>Reject Application</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               );

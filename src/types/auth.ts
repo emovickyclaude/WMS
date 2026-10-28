@@ -50,19 +50,17 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<UserRole, UserPermissions> = {
   },
 };
 
-export const GMAIL_INBOX_URL = 'https://mail.google.com/mail/u/0/?tab=rm&ogbl#inbox';
-
 export const INITIAL_USERS: AppUser[] = [
   {
     id: 'user-master-01',
     uid: 'user-master-01',
-    name: 'Master Administrator',
-    displayName: 'Master Administrator',
-    email: 'master@admin.com',
+    name: 'Vignesh (Master Admin)',
+    displayName: 'Vignesh',
+    email: 'vignesh@emobooks.com',
     role: 'MASTER_ADMIN',
     status: 'APPROVED',
     permissions: { ...ROLE_DEFAULT_PERMISSIONS.MASTER_ADMIN },
-    password: 'admin123',
+    password: 'Loga@2012',
     createdAt: new Date().toISOString(),
   },
   {

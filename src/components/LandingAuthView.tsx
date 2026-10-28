@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { 
   Warehouse, 
-  Lock, 
   KeyRound, 
   Mail, 
   ShieldCheck, 
@@ -10,47 +9,59 @@ import {
   CheckCircle2, 
   AlertCircle, 
   Clock, 
-  ExternalLink, 
   BookOpen, 
-  Layers, 
+  Sliders, 
+  Eye, 
+  Sparkles,
+  HelpCircle,
+  X,
   ArrowRight,
-  Eye,
-  Sliders,
-  Sparkles
+  ShieldAlert,
+  RefreshCw
 } from 'lucide-react';
-import { AppUser, UserRole, GMAIL_INBOX_URL } from '../types/auth';
+import { AppUser } from '../types/auth';
 
 interface LandingAuthViewProps {
   users: AppUser[];
   onLogin: (email: string, pass: string) => { success: boolean; errorReason?: 'PENDING' | 'REJECTED' | 'INVALID' };
-  onRegister: (name: string, email: string, role: UserRole, pass: string) => { success: boolean; message?: string };
+  onRegister: (name: string, email: string, pass: string) => { success: boolean; message?: string };
+  onResetPassword: (email: string, newPass: string) => { success: boolean; message?: string };
 }
 
 export const LandingAuthView: React.FC<LandingAuthViewProps> = ({
   users,
   onLogin,
   onRegister,
+  onResetPassword,
 }) => {
   const [activeTab, setActiveTab] = useState<'signin' | 'register'>('signin');
   
-  // Sign In state
-  const [loginEmail, setLoginEmail] = useState<string>('master@admin.com');
-  const [loginPass, setLoginPass] = useState<string>('admin123');
+  // Sign In state (clean, no demo credentials pre-filled)
+  const [loginEmail, setLoginEmail] = useState<string>('');
+  const [loginPass, setLoginPass] = useState<string>('');
+  const [showPassword, setShowPassword] = useState<boolean>(false);
   const [loginError, setLoginError] = useState<{
     type: 'PENDING' | 'REJECTED' | 'INVALID';
     message: string;
   } | null>(null);
 
-  // Register state
+  // Register state (only Name, Email, Password - NO role selector)
   const [regName, setRegName] = useState<string>('');
   const [regEmail, setRegEmail] = useState<string>('');
-  const [regRole, setRegRole] = useState<UserRole>('CUSTOMER_SERVICE');
   const [regPass, setRegPass] = useState<string>('');
   const [regConfirmPass, setRegConfirmPass] = useState<string>('');
   const [regError, setRegError] = useState<string | null>(null);
   const [regSuccess, setRegSuccess] = useState<boolean>(false);
 
-  const pendingCount = users.filter(u => u.status === 'PENDING').length;
+  // Forgot Password modal state
+  const [showForgotModal, setShowForgotModal] = useState<boolean>(false);
+  const [forgotStep, setForgotStep] = useState<'REQUEST' | 'VERIFY' | 'SUCCESS'>('REQUEST');
+  const [forgotEmail, setForgotEmail] = useState<string>('');
+  const [verificationCode, setVerificationCode] = useState<string>('');
+  const [inputCode, setInputCode] = useState<string>('');
+  const [newPassword, setNewPassword] = useState<string>('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState<string>('');
+  const [forgotError, setForgotError] = useState<string | null>(null);
 
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,17 +72,17 @@ export const LandingAuthView: React.FC<LandingAuthViewProps> = ({
       if (result.errorReason === 'PENDING') {
         setLoginError({
           type: 'PENDING',
-          message: 'Your account request has been submitted to the Master Admin for review. Once approved, you will be able to log in with your credentials.',
+          message: 'Your account request is currently pending review. The Master Admin will verify your application and assign your operational role.',
         });
       } else if (result.errorReason === 'REJECTED') {
         setLoginError({
           type: 'REJECTED',
-          message: 'This account registration was reviewed and rejected by the Master Admin. Please contact master@admin.com for assistance.',
+          message: 'This account registration was rejected by the Master Admin. Please contact vignesh@emobooks.com for verification.',
         });
       } else {
         setLoginError({
           type: 'INVALID',
-          message: 'Invalid email or password. Please verify your credentials or click a demo account below.',
+          message: 'Invalid email address or password. Please verify your credentials and try again.',
         });
       }
     }
@@ -82,19 +93,19 @@ export const LandingAuthView: React.FC<LandingAuthViewProps> = ({
     setRegError(null);
 
     if (!regName.trim() || !regEmail.trim()) {
-      setRegError('Please provide both your full name and email address.');
+      setRegError('Please provide both your full name and work email address.');
       return;
     }
-    if (regPass.length < 4) {
-      setRegError('Password must be at least 4 characters.');
+    if (regPass.length < 6) {
+      setRegError('Password must be at least 6 characters long.');
       return;
     }
     if (regPass !== regConfirmPass) {
-      setRegError('Passwords do not match.');
+      setRegError('Passwords do not match. Please verify your input.');
       return;
     }
 
-    const res = onRegister(regName.trim(), regEmail.trim(), regRole, regPass.trim());
+    const res = onRegister(regName.trim(), regEmail.trim(), regPass.trim());
     if (res.success) {
       setRegSuccess(true);
       setRegName('');
@@ -102,15 +113,70 @@ export const LandingAuthView: React.FC<LandingAuthViewProps> = ({
       setRegPass('');
       setRegConfirmPass('');
     } else {
-      setRegError(res.message || 'Registration failed. An account with this email may already exist.');
+      setRegError(res.message || 'Registration failed. An account with this email address may already exist.');
     }
   };
 
-  const fillCredentials = (email: string, pass: string) => {
-    setLoginEmail(email);
-    setLoginPass(pass);
-    setLoginError(null);
-    setActiveTab('signin');
+  // Forgot password workflows
+  const handleOpenForgotModal = () => {
+    setShowForgotModal(true);
+    setForgotStep('REQUEST');
+    setForgotEmail(loginEmail.trim());
+    setForgotError(null);
+    setInputCode('');
+    setNewPassword('');
+    setConfirmNewPassword('');
+  };
+
+  const handleRequestResetCode = (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotError(null);
+
+    const emailToFind = forgotEmail.trim().toLowerCase();
+    if (!emailToFind) {
+      setForgotError('Please enter your registered email address.');
+      return;
+    }
+
+    const userExists = users.some(u => u.email.toLowerCase() === emailToFind);
+    if (!userExists) {
+      setForgotError('No registered account was found matching this email address.');
+      return;
+    }
+
+    // Generate a secure 6-digit verification code
+    const generated = Math.floor(100000 + Math.random() * 900000).toString();
+    setVerificationCode(generated);
+    setForgotStep('VERIFY');
+  };
+
+  const handleConfirmPasswordReset = (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotError(null);
+
+    if (inputCode.trim() !== verificationCode) {
+      setForgotError('Invalid verification security code. Please enter the 6-digit code shown.');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setForgotError('New password must be at least 6 characters long.');
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      setForgotError('Passwords do not match. Please ensure both fields are identical.');
+      return;
+    }
+
+    const res = onResetPassword(forgotEmail.trim().toLowerCase(), newPassword.trim());
+    if (res.success) {
+      setForgotStep('SUCCESS');
+      setLoginEmail(forgotEmail.trim().toLowerCase());
+      setLoginPass('');
+    } else {
+      setForgotError(res.message || 'Failed to update password. Please try again.');
+    }
   };
 
   return (
@@ -128,7 +194,7 @@ export const LandingAuthView: React.FC<LandingAuthViewProps> = ({
                   LogiFlow WMS
                 </span>
                 <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-semibold">
-                  Phase 1 WMS
+                  Phase 1 Order Management
                 </span>
               </div>
               <p className="text-[11px] text-slate-400">
@@ -138,20 +204,7 @@ export const LandingAuthView: React.FC<LandingAuthViewProps> = ({
           </div>
 
           <div className="flex items-center gap-3">
-            <a
-              href={GMAIL_INBOX_URL}
-              target="_blank"
-              rel="noreferrer"
-              className="px-3.5 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm group cursor-pointer"
-              title="Open Master Admin Gmail inbox to review access requests"
-            >
-              <Mail className="h-3.5 w-3.5 text-rose-400 group-hover:scale-110 transition-transform" />
-              <span className="hidden sm:inline">Master Admin Gmail Inbox</span>
-              <span className="sm:hidden">Gmail Inbox</span>
-              <ExternalLink className="h-3 w-3 text-rose-400/80" />
-            </a>
-
-            <div className="hidden md:flex items-center gap-1.5 text-xs text-slate-400 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 font-mono">
+            <div className="flex items-center gap-1.5 text-xs text-slate-300 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800 font-mono">
               <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
               <span>Safety Preset: 10 Units</span>
             </div>
@@ -165,29 +218,29 @@ export const LandingAuthView: React.FC<LandingAuthViewProps> = ({
         <div className="flex-1 space-y-6 max-w-2xl">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-950/80 border border-indigo-500/30 text-indigo-300 text-xs font-medium">
             <Sparkles className="h-3.5 w-3.5 text-amber-400" />
-            <span>Dedicated Educational Publisher Distribution Architecture</span>
+            <span>Dedicated Educational Publisher Distribution System</span>
           </div>
 
           <h1 className="text-3xl sm:text-5xl font-extrabold tracking-tight leading-tight text-white">
-            Secure Warehouse Management & Shortage Requisitions
+            Warehouse Stock Reconciler & Purchase Order Engine
           </h1>
 
           <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
-            Automating book distributor stock control across Cambridge Primary English & Oxford Mathematics series. Reconciles physical warehouse stock balances against inbound supplier purchase orders using a strict preset safety formula.
+            Automating inventory safety buffers for Cambridge Primary English and Oxford International Primary Maths series. Continuously balances physical on-hand stocks against inbound supplier POs using a strict preset safety formula.
           </p>
 
           {/* Formula Callout Banner */}
-          <div className="p-4 rounded-2xl bg-gradient-to-r from-slate-900 to-indigo-950/60 border border-slate-800 text-xs sm:text-sm space-y-2">
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-slate-900 to-indigo-950/60 border border-slate-800 text-xs sm:text-sm space-y-2.5">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-mono uppercase tracking-wider text-amber-400 font-bold">
-                ★ Core Shortage Calculation Engine
+                ★ Core Shortage Calculation Formula
               </span>
               <span className="text-[11px] text-slate-400 font-mono">
-                Formula Benchmark: 10 Units
+                Preset Safety Threshold: 50 Copies (Minimum Qty.xlsx)
               </span>
             </div>
             <div className="bg-slate-950/90 rounded-xl p-3 border border-slate-800 flex flex-wrap items-center justify-between gap-2 font-mono text-xs">
-              <span className="text-amber-300 font-bold">Preset Min (10)</span>
+              <span className="text-amber-300 font-bold">Preset Min Stock (50)</span>
               <span className="text-slate-500 font-bold">−</span>
               <span className="text-cyan-300 font-bold">Stock Balance</span>
               <span className="text-slate-500 font-bold">−</span>
@@ -196,11 +249,11 @@ export const LandingAuthView: React.FC<LandingAuthViewProps> = ({
               <span className="text-rose-400 font-bold">Shortage Qty Needed</span>
             </div>
             <p className="text-[11px] text-slate-400">
-              When shortage &gt; 0, status marks as <strong className="text-rose-400">Qty Not Sufficient</strong> and prepares an automatic purchase requisition for Cambridge University Press or Oxford University Press.
+              When shortage &gt; 0, the title is flagged as <strong className="text-rose-400">Qty Not Sufficient</strong> and queued for automated supplier purchase requisition dispatch.
             </p>
           </div>
 
-          {/* Three Roles Explained */}
+          {/* Role Structure Explained */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
             <div className="p-3.5 rounded-xl bg-slate-900/80 border border-purple-500/30 space-y-1">
               <div className="flex items-center gap-1.5 text-purple-400 font-bold text-xs">
@@ -208,7 +261,7 @@ export const LandingAuthView: React.FC<LandingAuthViewProps> = ({
                 <span>Master Admin</span>
               </div>
               <p className="text-[11px] text-slate-400 leading-normal">
-                You only (<code className="text-purple-300">master@admin.com</code>). Absolute authority, Gmail approval reviews, user options & reset.
+                Full authority. Reviews pending registrations and explicitly determines user roles and permissions.
               </p>
             </div>
 
@@ -218,7 +271,7 @@ export const LandingAuthView: React.FC<LandingAuthViewProps> = ({
                 <span>Operations Admin</span>
               </div>
               <p className="text-[11px] text-slate-400 leading-normal">
-                Upload physical stock & PO CSV files, dispatch purchase orders, adjust safety presets, and export reports.
+                Uploads physical stock and PO CSVs, dispatches purchase requisitions, and adjusts safety thresholds.
               </p>
             </div>
 
@@ -228,18 +281,27 @@ export const LandingAuthView: React.FC<LandingAuthViewProps> = ({
                 <span>Customer Services</span>
               </div>
               <p className="text-[11px] text-slate-400 leading-normal">
-                <strong className="text-cyan-300">View-Only Access</strong>. Can inspect stock availability, shortages, and PO history. Cannot edit or upload.
+                <strong className="text-cyan-300">View-Only Access</strong>. Inspects on-hand quantities, shortages, and requisition logs without edit permissions.
               </p>
             </div>
           </div>
         </div>
 
-        {/* Right Column: High-Fidelity Authentication Card */}
-        <div className="w-full lg:w-[440px] shrink-0">
+        {/* Right Column: Clean Authentication Portal (No Demo Credentials) */}
+        <div className="w-full lg:w-[420px] shrink-0">
           <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-7 shadow-2xl backdrop-blur-xl relative">
-            <div className="absolute -top-3 -right-3">
-              <span className="flex h-6 items-center px-2.5 rounded-full text-[10px] font-bold bg-indigo-600 text-white shadow-md shadow-indigo-600/40">
-                LogiFlow Auth
+            {/* Header Badge */}
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded-lg bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+                  <ShieldCheck className="h-4 w-4" />
+                </div>
+                <span className="text-xs font-bold text-slate-200">
+                  Secure Warehouse Portal
+                </span>
+              </div>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-medium">
+                Protected Session
               </span>
             </div>
 
@@ -279,11 +341,11 @@ export const LandingAuthView: React.FC<LandingAuthViewProps> = ({
               </button>
             </div>
 
-            {/* TAB 1: SIGN IN */}
+            {/* TAB 1: CLEAN SIGN IN (No Demo Helper Cards) */}
             {activeTab === 'signin' && (
               <form onSubmit={handleLoginSubmit} className="space-y-4">
                 <div>
-                  <h2 className="text-lg font-bold text-white">Sign In to LogiFlow WMS</h2>
+                  <h2 className="text-base font-bold text-white">Log In to Your Account</h2>
                   <p className="text-xs text-slate-400 mt-0.5">
                     Enter your authorized warehouse credentials to access inventory.
                   </p>
@@ -291,11 +353,9 @@ export const LandingAuthView: React.FC<LandingAuthViewProps> = ({
 
                 {/* Error Banner */}
                 {loginError && (
-                  <div className={`p-3.5 rounded-2xl border text-xs leading-relaxed space-y-2 ${
+                  <div className={`p-3.5 rounded-2xl border text-xs leading-relaxed space-y-1.5 ${
                     loginError.type === 'PENDING'
                       ? 'bg-amber-950/60 border-amber-500/50 text-amber-200'
-                      : loginError.type === 'REJECTED'
-                      ? 'bg-rose-950/60 border-rose-500/50 text-rose-200'
                       : 'bg-rose-950/60 border-rose-500/50 text-rose-200'
                   }`}>
                     <div className="flex items-start gap-2">
@@ -306,22 +366,6 @@ export const LandingAuthView: React.FC<LandingAuthViewProps> = ({
                       )}
                       <div>{loginError.message}</div>
                     </div>
-
-                    {loginError.type === 'PENDING' && (
-                      <div className="pt-1 border-t border-amber-500/30 flex items-center justify-between">
-                        <span className="text-[10px] text-amber-300">Notify or check inbox:</span>
-                        <a
-                          href={GMAIL_INBOX_URL}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-lg text-[10px] font-bold inline-flex items-center gap-1 cursor-pointer"
-                        >
-                          <Mail className="h-3 w-3" />
-                          <span>Open Master Admin Gmail to Review Requests</span>
-                          <ExternalLink className="h-2.5 w-2.5" />
-                        </a>
-                      </div>
-                    )}
                   </div>
                 )}
 
@@ -336,153 +380,81 @@ export const LandingAuthView: React.FC<LandingAuthViewProps> = ({
                       required
                       value={loginEmail}
                       onChange={e => setLoginEmail(e.target.value)}
-                      placeholder="e.g. master@admin.com"
+                      placeholder="e.g. name@emobooks.com"
                       className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-700 bg-slate-950 text-white text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Password
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-xs font-semibold text-slate-300">
+                      Password
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleOpenForgotModal}
+                      className="text-[11px] text-indigo-400 hover:text-indigo-300 hover:underline cursor-pointer"
+                    >
+                      Forgot password?
+                    </button>
+                  </div>
                   <div className="relative">
                     <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
                     <input
-                      type="password"
+                      type={showPassword ? 'text' : 'password'}
                       required
                       value={loginPass}
                       onChange={e => setLoginPass(e.target.value)}
                       placeholder="Enter account password"
-                      className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-700 bg-slate-950 text-white text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      className="w-full pl-9 pr-10 py-2.5 rounded-xl border border-slate-700 bg-slate-950 text-white text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 cursor-pointer"
+                      title={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </button>
                   </div>
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-indigo-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer mt-2"
+                  className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-indigo-600/30 transition-all flex items-center justify-center gap-2 cursor-pointer mt-4"
                 >
                   <LogIn className="h-4 w-4" />
                   <span>Authenticate & Open Dashboard</span>
                 </button>
 
-                {/* Quick Demo Credentials Autofill */}
-                <div className="pt-3 border-t border-slate-800 space-y-2">
-                  <span className="text-[11px] font-semibold text-slate-400 block uppercase tracking-wider">
-                    Quick Demo Credentials (1-Click Fill)
-                  </span>
-                  
-                  <div className="grid grid-cols-1 gap-1.5 text-xs">
-                    {/* Master Admin Button */}
-                    <button
-                      type="button"
-                      onClick={() => fillCredentials('master@admin.com', 'admin123')}
-                      className="p-2 rounded-xl bg-purple-950/40 hover:bg-purple-950/70 border border-purple-500/40 text-left transition-all flex items-center justify-between cursor-pointer group"
-                    >
-                      <div className="flex items-center gap-2">
-                        <div className="h-6 w-6 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold text-[10px]">
-                          👑
-                        </div>
-                        <div>
-                          <div className="font-bold text-purple-300 text-[11px]">
-                            Master Admin (You Only)
-                          </div>
-                          <div className="text-[10px] text-slate-400 font-mono">
-                            master@admin.com · pass: admin123
-                          </div>
-                        </div>
-                      </div>
-                      <span className="text-[10px] text-purple-300 font-semibold group-hover:underline">
-                        Fill ➔
-                      </span>
-                    </button>
-
-                    {/* Operations Admin Button */}
-                    <button
-                      type="button"
-                      onClick={() => fillCredentials('admin@logiflow.io', 'Admin123Password!')}
-                      className="p-2 rounded-xl bg-amber-950/40 hover:bg-amber-950/70 border border-amber-500/40 text-left transition-all flex items-center justify-between cursor-pointer group"
-                    >
-                      <div className="flex items-center gap-2">
-                        <div className="h-6 w-6 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-[10px]">
-                          ⚡
-                        </div>
-                        <div>
-                          <div className="font-bold text-amber-300 text-[11px]">
-                            Operations Admin
-                          </div>
-                          <div className="text-[10px] text-slate-400 font-mono">
-                            admin@logiflow.io · pass: Admin123Password!
-                          </div>
-                        </div>
-                      </div>
-                      <span className="text-[10px] text-amber-300 font-semibold group-hover:underline">
-                        Fill ➔
-                      </span>
-                    </button>
-
-                    {/* Customer Services Button */}
-                    <button
-                      type="button"
-                      onClick={() => fillCredentials('cs@logiflow.io', 'CS123Password!')}
-                      className="p-2 rounded-xl bg-cyan-950/40 hover:bg-cyan-950/70 border border-cyan-500/40 text-left transition-all flex items-center justify-between cursor-pointer group"
-                    >
-                      <div className="flex items-center gap-2">
-                        <div className="h-6 w-6 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center font-bold text-[10px]">
-                          👁️
-                        </div>
-                        <div>
-                          <div className="font-bold text-cyan-300 text-[11px]">
-                            Customer Services (View-Only)
-                          </div>
-                          <div className="text-[10px] text-slate-400 font-mono">
-                            cs@logiflow.io · pass: CS123Password!
-                          </div>
-                        </div>
-                      </div>
-                      <span className="text-[10px] text-cyan-300 font-semibold group-hover:underline">
-                        Fill ➔
-                      </span>
-                    </button>
-                  </div>
+                <div className="pt-3 border-t border-slate-800 text-center">
+                  <p className="text-[11px] text-slate-500">
+                    Need an account? Click <strong className="text-indigo-400 cursor-pointer" onClick={() => setActiveTab('register')}>Request Account</strong> to apply.
+                  </p>
                 </div>
               </form>
             )}
 
-            {/* TAB 2: REQUEST ACCOUNT (REGISTRATION) */}
+            {/* TAB 2: REQUEST ACCOUNT (REGISTRATION - NO ROLE SELECTOR) */}
             {activeTab === 'register' && (
-              <form onSubmit={handleRegisterSubmit} className="space-y-4">
+              <form onSubmit={handleRegisterSubmit} className="space-y-3.5">
                 <div>
-                  <h2 className="text-lg font-bold text-white">Request Warehouse Account</h2>
+                  <h2 className="text-base font-bold text-white">Request Warehouse Access</h2>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    Submit application to Master Admin. New accounts start as <strong>Pending Approval</strong>.
+                    Submit your details. The Master Admin will review your application and determine your operational role.
                   </p>
                 </div>
 
                 {/* Success Banner */}
                 {regSuccess && (
-                  <div className="p-4 rounded-2xl bg-amber-950/70 border border-amber-500/60 text-amber-200 text-xs leading-relaxed space-y-3">
+                  <div className="p-4 rounded-2xl bg-amber-950/70 border border-amber-500/60 text-amber-200 text-xs leading-relaxed space-y-2">
                     <div className="flex items-start gap-2">
                       <Clock className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
                       <div>
-                        <span className="font-bold text-white block text-sm">Application Submitted!</span>
-                        Your account request has been submitted to the Master Admin for review. Once approved, you will be able to log in with your credentials.
+                        <span className="font-bold text-white block text-sm">Application Submitted Successfully</span>
+                        Your registration has been submitted to the Master Admin for review. Once approved and assigned a role (Admin or Customer Services), you will be able to log in with your credentials.
                       </div>
-                    </div>
-
-                    <div className="pt-2 border-t border-amber-500/30 flex items-center justify-between">
-                      <span className="text-[10px] text-amber-300">Master Admin Review Shortcut:</span>
-                      <a
-                        href={GMAIL_INBOX_URL}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="px-3 py-1.5 bg-amber-500 text-slate-950 hover:bg-amber-400 rounded-xl text-xs font-bold inline-flex items-center gap-1.5 shadow-sm cursor-pointer"
-                      >
-                        <Mail className="h-3.5 w-3.5" />
-                        <span>Open Master Admin Gmail</span>
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
                     </div>
                   </div>
                 )}
@@ -518,49 +490,9 @@ export const LandingAuthView: React.FC<LandingAuthViewProps> = ({
                     required
                     value={regEmail}
                     onChange={e => setRegEmail(e.target.value)}
-                    placeholder="e.g. rachel@logiflow.io"
+                    placeholder="e.g. rachel@emobooks.com"
                     className="w-full px-3 py-2 rounded-xl border border-slate-700 bg-slate-950 text-white text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
-                </div>
-
-                {/* Role Selection */}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    Requested Warehouse Role
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <label
-                      onClick={() => setRegRole('ADMIN')}
-                      className={`p-2.5 rounded-xl border text-xs cursor-pointer transition-all ${
-                        regRole === 'ADMIN'
-                          ? 'bg-amber-950/60 border-amber-500 text-amber-200 shadow-sm'
-                          : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
-                      }`}
-                    >
-                      <div className="font-bold text-[11px] flex items-center gap-1 text-amber-300">
-                        <Sliders className="h-3.5 w-3.5" /> Admin
-                      </div>
-                      <div className="text-[10px] text-slate-400 mt-0.5 leading-tight">
-                        Upload CSVs, dispatch POs & edit safety stocks
-                      </div>
-                    </label>
-
-                    <label
-                      onClick={() => setRegRole('CUSTOMER_SERVICE')}
-                      className={`p-2.5 rounded-xl border text-xs cursor-pointer transition-all ${
-                        regRole === 'CUSTOMER_SERVICE'
-                          ? 'bg-cyan-950/60 border-cyan-500 text-cyan-200 shadow-sm'
-                          : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
-                      }`}
-                    >
-                      <div className="font-bold text-[11px] flex items-center gap-1 text-cyan-300">
-                        <Eye className="h-3.5 w-3.5" /> Customer Services
-                      </div>
-                      <div className="text-[10px] text-slate-400 mt-0.5 leading-tight">
-                        Strict View-Only stock inspection & reporting
-                      </div>
-                    </label>
-                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
@@ -573,7 +505,7 @@ export const LandingAuthView: React.FC<LandingAuthViewProps> = ({
                       required
                       value={regPass}
                       onChange={e => setRegPass(e.target.value)}
-                      placeholder="Min 4 chars"
+                      placeholder="Min 6 chars"
                       className="w-full px-3 py-2 rounded-xl border border-slate-700 bg-slate-950 text-white text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                   </div>
@@ -592,28 +524,212 @@ export const LandingAuthView: React.FC<LandingAuthViewProps> = ({
                   </div>
                 </div>
 
+                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-[11px] text-slate-400 space-y-1">
+                  <div className="font-semibold text-slate-300 flex items-center gap-1.5">
+                    <ShieldCheck className="h-3.5 w-3.5 text-purple-400" />
+                    <span>Role Assignment by Master Admin</span>
+                  </div>
+                  <p>
+                    Applicants do not select roles. The Master Admin determines and assigns operational privileges upon reviewing your application.
+                  </p>
+                </div>
+
                 <button
                   type="submit"
                   className="w-full py-2.5 px-4 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-bold shadow-lg shadow-amber-500/20 transition-all flex items-center justify-center gap-2 cursor-pointer mt-2"
                 >
                   <UserPlus className="h-4 w-4" />
-                  <span>Submit Application to Master Admin</span>
+                  <span>Submit Application</span>
                 </button>
-
-                <p className="text-[11px] text-slate-400 text-center">
-                  Submissions require approval by Master Admin (<code className="text-purple-300">master@admin.com</code>).
-                </p>
               </form>
             )}
           </div>
         </div>
       </main>
 
+      {/* FORGOT PASSWORD MODAL */}
+      {showForgotModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 shadow-2xl relative text-slate-100">
+            <button
+              onClick={() => setShowForgotModal(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="h-10 w-10 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+                <KeyRound className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-base text-white">Reset Account Password</h3>
+                <p className="text-xs text-slate-400">Secure credential recovery workflow</p>
+              </div>
+            </div>
+
+            {forgotError && (
+              <div className="p-3 mb-4 rounded-xl bg-rose-950/60 border border-rose-500/50 text-rose-200 text-xs flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-rose-400 shrink-0" />
+                <span>{forgotError}</span>
+              </div>
+            )}
+
+            {/* STEP 1: Enter Email */}
+            {forgotStep === 'REQUEST' && (
+              <form onSubmit={handleRequestResetCode} className="space-y-4">
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  Enter your registered work email address. We will verify your account and provide a security verification code to reset your password.
+                </p>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Registered Email Address
+                  </label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                    <input
+                      type="email"
+                      required
+                      value={forgotEmail}
+                      onChange={e => setForgotEmail(e.target.value)}
+                      placeholder="e.g. vignesh@emobooks.com"
+                      className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-700 bg-slate-950 text-white text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotModal(false)}
+                    className="px-3.5 py-2 text-xs font-medium text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold shadow-md shadow-indigo-600/30 transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <span>Generate Reset Code</span>
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* STEP 2: Verify Code and Set New Password */}
+            {forgotStep === 'VERIFY' && (
+              <form onSubmit={handleConfirmPasswordReset} className="space-y-4">
+                {/* Security Code Banner */}
+                <div className="p-3.5 rounded-xl bg-indigo-950/70 border border-indigo-500/40 text-xs space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-indigo-300 uppercase tracking-wider">
+                      Security Verification Code
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-mono">Dispatched for {forgotEmail}</span>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-slate-950 border border-indigo-500/30 text-center font-mono text-xl font-black text-indigo-300 tracking-widest">
+                    {verificationCode}
+                  </div>
+                  <p className="text-[11px] text-slate-400 text-center">
+                    Enter the 6-digit code above to authenticate your password change.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Enter 6-Digit Code
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={6}
+                    value={inputCode}
+                    onChange={e => setInputCode(e.target.value)}
+                    placeholder="Enter 6-digit code"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-700 bg-slate-950 text-white text-xs font-mono tracking-widest text-center focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      New Password
+                    </label>
+                    <input
+                      type="password"
+                      required
+                      value={newPassword}
+                      onChange={e => setNewPassword(e.target.value)}
+                      placeholder="Min 6 chars"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-700 bg-slate-950 text-white text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      Confirm New
+                    </label>
+                    <input
+                      type="password"
+                      required
+                      value={confirmNewPassword}
+                      onChange={e => setConfirmNewPassword(e.target.value)}
+                      placeholder="Re-enter pass"
+                      className="w-full px-3 py-2 rounded-xl border border-slate-700 bg-slate-950 text-white text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setForgotStep('REQUEST')}
+                    className="text-xs text-slate-400 hover:text-slate-200"
+                  >
+                    ← Back
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/30 transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    <span>Save New Password</span>
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* STEP 3: SUCCESS */}
+            {forgotStep === 'SUCCESS' && (
+              <div className="text-center py-4 space-y-4">
+                <div className="h-12 w-12 rounded-full bg-emerald-500/20 text-emerald-400 mx-auto flex items-center justify-center">
+                  <CheckCircle2 className="h-6 w-6" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-white text-base">Password Reset Complete</h4>
+                  <p className="text-xs text-slate-300 mt-1">
+                    Your password has been successfully updated. You can now authenticate with your new credentials.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowForgotModal(false)}
+                  className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-indigo-600/30 transition-all cursor-pointer"
+                >
+                  Proceed to Sign In
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Footer */}
       <footer className="border-t border-slate-800/80 bg-slate-900/60 py-4 text-xs text-slate-400">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2">
           <div>
-            <span>LogiFlow WMS · Publishing Distributor Order Management System</span>
+            <span>LogiFlow WMS · Cambridge & Oxford Bookstore Order Management</span>
           </div>
           <div className="flex items-center gap-4 text-[11px]">
             <span>Formula: <code>10 Min − Stock Balance − Extra PO = Shortage Qty</code></span>

@@ -33,7 +33,6 @@ import {
   UserRole, 
   INITIAL_USERS,
   ROLE_DEFAULT_PERMISSIONS,
-  GMAIL_INBOX_URL
 } from './types/auth';
 import { INITIAL_INVENTORY } from './data/initialData';
 import { FormulaBanner } from './components/FormulaBanner';
@@ -48,11 +47,11 @@ import { DualUploadCenterTab } from './components/tabs/DualUploadCenterTab';
 import { PoHistoryTab } from './components/tabs/PoHistoryTab';
 import { AdminUserManagementTab } from './components/tabs/AdminUserManagementTab';
 
-const STORAGE_KEY_ITEMS = 'logiflow_wms_phase1_inventory_preset10_v16';
-const STORAGE_KEY_POS = 'logiflow_wms_phase1_pos_preset10_v16';
-const STORAGE_KEY_LOGS = 'logiflow_wms_phase1_upload_logs_preset10_v16';
-const STORAGE_KEY_USERS = 'logiflow_wms_phase1_users_preset10_v16';
-const STORAGE_KEY_CURRENT_USER = 'logiflow_wms_phase1_current_user_preset10_v16';
+const STORAGE_KEY_ITEMS = 'logiflow_wms_phase1_inventory_preset50_v19';
+const STORAGE_KEY_POS = 'logiflow_wms_phase1_pos_preset50_v19';
+const STORAGE_KEY_LOGS = 'logiflow_wms_phase1_upload_logs_preset50_v19';
+const STORAGE_KEY_USERS = 'logiflow_wms_phase1_users_preset50_v19';
+const STORAGE_KEY_CURRENT_USER = 'logiflow_wms_phase1_current_user_preset50_v19';
 
 export default function App() {
   // Users state
@@ -69,18 +68,18 @@ export default function App() {
     return INITIAL_USERS;
   });
 
-  // Current logged in user
+  // Current logged in user (null by default for absolute sign-in security)
   const [currentUser, setCurrentUser] = useState<AppUser | null>(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY_CURRENT_USER);
-      if (stored) {
+      if (stored && stored !== 'signed_out') {
         const parsed = JSON.parse(stored);
         if (parsed && (parsed.id || parsed.uid)) return parsed;
       }
     } catch {
       // ignore
     }
-    return INITIAL_USERS[0]; // Master Admin (master@admin.com) by default
+    return null;
   });
 
   const currentPermissions: UserPermissions = useMemo(() => {
@@ -497,11 +496,48 @@ export default function App() {
     showToast(`User status updated to ${newStatus}`);
   };
 
+  const handleApproveUserWithRole = (id: string, role: UserRole) => {
+    const rolePermissions = { ...ROLE_DEFAULT_PERMISSIONS[role] };
+    setUsers(prev => {
+      const updated = prev.map(u => {
+        if (u.id === id || u.uid === id) {
+          return {
+            ...u,
+            status: 'APPROVED' as UserStatus,
+            role,
+            permissions: rolePermissions,
+          };
+        }
+        return u;
+      });
+      localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(updated));
+      return updated;
+    });
+    showToast(`Approved applicant as ${role === 'ADMIN' ? 'Operations Admin' : 'Customer Services'}!`);
+  };
+
   const handleUpdateUserPassword = (id: string, newPass: string) => {
     setUsers(prev =>
       prev.map(u => ((u.id === id || u.uid === id) ? { ...u, password: newPass } : u))
     );
     showToast(`Password successfully updated!`);
+  };
+
+  const handleResetPassword = (email: string, newPass: string): { success: boolean; message?: string } => {
+    const cleanEmail = email.trim().toLowerCase();
+    const userIndex = users.findIndex(u => u.email.toLowerCase() === cleanEmail);
+    if (userIndex === -1) {
+      return { success: false, message: 'Account not found with this email address.' };
+    }
+    const updated = [...users];
+    updated[userIndex] = {
+      ...updated[userIndex],
+      password: newPass,
+    };
+    setUsers(updated);
+    localStorage.setItem(STORAGE_KEY_USERS, JSON.stringify(updated));
+    showToast(`Password reset for ${cleanEmail}! Please log in.`);
+    return { success: true };
   };
 
   const handleCreateUser = (newUser: AppUser) => {
@@ -530,7 +566,7 @@ export default function App() {
     return { success: true };
   };
 
-  const handleAuthRegister = (name: string, email: string, role: UserRole, pass?: string): { success: boolean; message?: string } => {
+  const handleAuthRegister = (name: string, email: string, pass: string): { success: boolean; message?: string } => {
     const cleanEmail = email.trim().toLowerCase();
     const exists = users.find(u => u.email.toLowerCase() === cleanEmail);
     if (exists) {
@@ -545,9 +581,9 @@ export default function App() {
       name: cleanName,
       displayName: cleanName,
       email: cleanEmail,
-      role: role,
+      role: 'CUSTOMER_SERVICE', // Default until Master Admin assigns role upon approval
       status: 'PENDING',
-      permissions: { ...ROLE_DEFAULT_PERMISSIONS[role] },
+      permissions: { ...ROLE_DEFAULT_PERMISSIONS.CUSTOMER_SERVICE },
       password: pass || 'Staff123Password!',
       createdAt: new Date().toISOString(),
     };
@@ -572,6 +608,7 @@ export default function App() {
           users={users}
           onLogin={handleAuthLogin}
           onRegister={handleAuthRegister}
+          onResetPassword={handleResetPassword}
         />
         {toastMessage && (
           <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl border border-slate-700 flex items-center gap-2.5 text-xs font-medium animate-fade-in">
@@ -689,19 +726,6 @@ export default function App() {
                   </span>
                 </div>
               </button>
-
-              {/* Master Admin Gmail Inbox Link */}
-              <a
-                href={GMAIL_INBOX_URL}
-                target="_blank"
-                rel="noreferrer"
-                className="px-3 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
-                title="Open Master Admin Gmail to Review Requests"
-              >
-                <Mail className="h-3.5 w-3.5 text-rose-400" />
-                <span className="hidden xl:inline">Master Admin Gmail</span>
-                <ExternalLink className="h-3 w-3 text-rose-400/80" />
-              </a>
 
               {/* Pending Approvals Badge for Admins */}
               {currentPermissions.canManageUsers && users.filter(u => u.status === 'PENDING').length > 0 && (
@@ -1076,6 +1100,7 @@ export default function App() {
             onUpdateUserPermissions={handleUpdateUserPermissions}
             onUpdateUserRole={handleUpdateUserRole}
             onUpdateUserStatus={handleUpdateUserStatus}
+            onApproveUserWithRole={handleApproveUserWithRole}
             onUpdateUserPassword={handleUpdateUserPassword}
             onCreateUser={handleCreateUser}
             onSwitchUser={handleSwitchUser}
@@ -1112,7 +1137,8 @@ export default function App() {
         currentUser={currentUser}
         pendingUsers={users.filter(u => u.status === 'PENDING')}
         onLogin={handleAuthLogin}
-        onRegister={handleAuthRegister}
+        onRegister={(name, email, _role, pass) => handleAuthRegister(name, email, pass || '')}
+        onResetPassword={handleResetPassword}
         onLogout={handleAuthLogout}
         onClose={() => setIsLoginModalOpen(false)}
         onOpenUserManagement={() => {

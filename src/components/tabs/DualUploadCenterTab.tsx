@@ -9,7 +9,7 @@ import {
   BookOpen
 } from 'lucide-react';
 import { InventoryItem, UploadType } from '../../types/inventory';
-import { downloadSampleCsv } from '../../utils/csvUtils';
+import { downloadSampleCsv, downloadSampleFile } from '../../utils/csvUtils';
 import { QuickAdjustDropdown } from '../QuickAdjustDropdown';
 
 import { UserPermissions } from '../../types/auth';
@@ -92,26 +92,36 @@ export const DualUploadCenterTab: React.FC<DualUploadCenterTabProps> = ({
                   <Upload className="h-6 w-6" />
                 </div>
                 <h4 className="font-semibold text-sm text-slate-900 dark:text-slate-100">
-                  Upload Stock Balance CSV
+                  Upload Stock Balance (Excel / CSV)
                 </h4>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  Expected schema: <code className="bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 rounded font-mono text-[11px] text-cyan-700 dark:text-cyan-300">isbn, stock_balance</code>
+                  Expected schema: <code className="bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 rounded font-mono text-[11px] text-cyan-700 dark:text-cyan-300">isbn, stock_balance</code> in .xlsx, .xls, or .csv
                 </p>
                 <span className="mt-3 inline-block px-3 py-1 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold rounded-lg shadow-sm">
-                  Launch Upload Parser
+                  Launch Excel/CSV Parser
                 </span>
               </div>
 
               {/* Sample Download button */}
-              <div className="flex items-center justify-between text-xs pt-1">
+              <div className="flex flex-wrap items-center justify-between text-xs pt-1 gap-1">
                 <span className="text-slate-500">Sample: <code>9781108742719, 15</code></span>
-                <button
-                  type="button"
-                  onClick={() => downloadSampleCsv('stock_balance')}
-                  className="text-cyan-600 dark:text-cyan-400 hover:underline flex items-center gap-1 font-medium cursor-pointer"
-                >
-                  <Download className="h-3.5 w-3.5" /> Download stock_balance.csv
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => downloadSampleFile('stock_balance', 'xlsx')}
+                    className="text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 font-medium cursor-pointer"
+                  >
+                    <Download className="h-3 w-3" /> Sample .xlsx
+                  </button>
+                  <span className="text-slate-400">·</span>
+                  <button
+                    type="button"
+                    onClick={() => downloadSampleFile('stock_balance', 'csv')}
+                    className="text-cyan-600 dark:text-cyan-400 hover:underline flex items-center gap-1 font-medium cursor-pointer"
+                  >
+                    <Download className="h-3 w-3" /> Sample .csv
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -163,26 +173,36 @@ export const DualUploadCenterTab: React.FC<DualUploadCenterTabProps> = ({
                   <Upload className="h-6 w-6" />
                 </div>
                 <h4 className="font-semibold text-sm text-slate-900 dark:text-slate-100">
-                  Upload Extra PO Stock CSV
+                  Upload Extra PO Stock (Excel / CSV)
                 </h4>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  Expected schema: <code className="bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 rounded font-mono text-[11px] text-purple-700 dark:text-purple-300">isbn, extra_po_stock</code>
+                  Expected schema: <code className="bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 rounded font-mono text-[11px] text-purple-700 dark:text-purple-300">isbn, extra_po_stock</code> in .xlsx, .xls, or .csv
                 </p>
                 <span className="mt-3 inline-block px-3 py-1 bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold rounded-lg shadow-sm">
-                  Launch Upload Parser
+                  Launch Excel/CSV Parser
                 </span>
               </div>
 
               {/* Sample Download button */}
-              <div className="flex items-center justify-between text-xs pt-1">
+              <div className="flex flex-wrap items-center justify-between text-xs pt-1 gap-1">
                 <span className="text-slate-500">Sample: <code>9781108742719, 10</code></span>
-                <button
-                  type="button"
-                  onClick={() => downloadSampleCsv('extra_po')}
-                  className="text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-1 font-medium cursor-pointer"
-                >
-                  <Download className="h-3.5 w-3.5" /> Download extra_po.csv
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => downloadSampleFile('extra_po', 'xlsx')}
+                    className="text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 font-medium cursor-pointer"
+                  >
+                    <Download className="h-3 w-3" /> Sample .xlsx
+                  </button>
+                  <span className="text-slate-400">·</span>
+                  <button
+                    type="button"
+                    onClick={() => downloadSampleFile('extra_po', 'csv')}
+                    className="text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-1 font-medium cursor-pointer"
+                  >
+                    <Download className="h-3 w-3" /> Sample .csv
+                  </button>
+                </div>
               </div>
             </div>
 

@@ -10,10 +10,10 @@ import {
   Truck, 
   ArrowRight,
   RefreshCw,
-  BookOpen
+  FileSpreadsheet
 } from 'lucide-react';
 import { InventoryItem, UploadType, CsvParsedRow } from '../types/inventory';
-import { parseUploadCsv, downloadSampleCsv } from '../utils/csvUtils';
+import { parseUploadFile, downloadSampleFile } from '../utils/csvUtils';
 import confetti from 'canvas-confetti';
 
 interface UploadModalProps {
@@ -46,27 +46,38 @@ export const UploadModal: React.FC<UploadModalProps> = ({
   if (!isOpen) return null;
 
   const isStockBalance = type === 'stock_balance';
-  const modalTitle = isStockBalance ? 'Upload Stock Balance CSV' : 'Upload Extra PO Stock CSV';
+  const modalTitle = isStockBalance ? 'Upload Stock Balance (Excel / CSV)' : 'Upload Extra PO Stock (Excel / CSV)';
   const formatExample = isStockBalance 
-    ? 'ISBN,stock_balance\n9781108742719,15\n9781108789943,20\n9781108819558,30' 
-    : 'ISBN,extra_po_stock\n9781108742719,10\n9781108789943,15\n9781108819558,10';
+    ? 'ISBN,stock_balance\n9781108742719,15\n9781108789943,20\n9781108819558,30\n9789815055344,25' 
+    : 'ISBN,extra_po_stock\n9781108742719,10\n9781108789943,15\n9781108819558,10\n9789815055344,20';
+
+  const handleProcessRawBuffer = (buffer: ArrayBuffer, name: string) => {
+    setFileName(name);
+    const result = parseUploadFile(buffer, name, type, items);
+    setParsedResult(result);
+  };
 
   const handleProcessText = (text: string, name = 'Pasted Data') => {
     setCsvContent(text);
     setFileName(name);
-    const result = parseUploadCsv(text, type, items);
+    const result = parseUploadFile(text, name, type, items);
     setParsedResult(result);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
     const reader = new FileReader();
     reader.onload = event => {
-      const text = event.target?.result as string;
-      handleProcessText(text, file.name);
+      const result = event.target?.result;
+      if (result instanceof ArrayBuffer) {
+        handleProcessRawBuffer(result, file.name);
+      } else if (typeof result === 'string') {
+        handleProcessText(result, file.name);
+      }
     };
-    reader.readAsText(file);
+    reader.readAsArrayBuffer(file);
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -76,10 +87,14 @@ export const UploadModal: React.FC<UploadModalProps> = ({
     if (file) {
       const reader = new FileReader();
       reader.onload = event => {
-        const text = event.target?.result as string;
-        handleProcessText(text, file.name);
+        const result = event.target?.result;
+        if (result instanceof ArrayBuffer) {
+          handleProcessRawBuffer(result, file.name);
+        } else if (typeof result === 'string') {
+          handleProcessText(result, file.name);
+        }
       };
-      reader.readAsText(file);
+      reader.readAsArrayBuffer(file);
     }
   };
 
@@ -116,7 +131,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className={`p-4 sm:p-5 text-white flex items-center justify-between ${
           isStockBalance ? 'bg-gradient-to-r from-cyan-900 to-slate-900' : 'bg-gradient-to-r from-purple-900 to-slate-900'
@@ -136,15 +151,15 @@ export const UploadModal: React.FC<UploadModalProps> = ({
               </div>
               <p className="text-xs text-slate-300">
                 {isStockBalance 
-                  ? 'Update on-hand physical warehouse balances per ISBN' 
-                  : 'Update outstanding inbound purchase order quantities per ISBN'}
+                  ? 'Update on-hand physical warehouse balances by ISBN via Excel (.xlsx, .xls) or CSV' 
+                  : 'Update outstanding inbound purchase order quantities by ISBN via Excel (.xlsx, .xls) or CSV'}
               </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
+            className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
           >
             <X className="h-5 w-5" />
           </button>
@@ -169,7 +184,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".csv,text/csv,text/plain"
+                  accept=".xlsx,.xls,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
                   className="hidden"
                   onChange={handleFileChange}
                 />
@@ -179,39 +194,52 @@ export const UploadModal: React.FC<UploadModalProps> = ({
                   <Upload className="h-6 w-6" />
                 </div>
                 <h4 className="font-semibold text-slate-800 dark:text-slate-100 text-sm">
-                  Click to browse or drag & drop CSV file
+                  Click to browse or drag & drop Excel (.xlsx, .xls) or CSV
                 </h4>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  Format: <code className="bg-slate-200 dark:bg-slate-700 px-1.5 py-0.5 rounded font-mono text-[11px]">{isStockBalance ? 'isbn, stock_balance' : 'isbn, extra_po_stock'}</code>
+                  Supports Excel spreadsheets & CSV files. Expected columns: <code className="bg-slate-200 dark:bg-slate-700 px-1.5 py-0.5 rounded font-mono text-[11px]">{isStockBalance ? 'ISBN, stock_balance' : 'ISBN, extra_po_stock'}</code>
                 </p>
               </div>
 
-              {/* Quick sample download or manual paste */}
-              <div className="flex items-center justify-between pt-2">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    downloadSampleCsv(type);
-                  }}
-                  className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 font-medium cursor-pointer"
-                >
-                  <Download className="h-3.5 w-3.5" /> Download {isStockBalance ? 'stock_balance.csv' : 'extra_po.csv'} Sample
-                </button>
+              {/* Sample file downloads */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-b border-slate-100 dark:border-slate-800 pb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-500 font-medium">Download Templates:</span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      downloadSampleFile(type, 'xlsx');
+                    }}
+                    className="text-xs bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 border border-emerald-300 dark:border-emerald-800 px-2.5 py-1 rounded-lg flex items-center gap-1 font-medium transition-colors cursor-pointer"
+                  >
+                    <FileSpreadsheet className="h-3.5 w-3.5" /> Excel (.xlsx)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      downloadSampleFile(type, 'csv');
+                    }}
+                    className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 px-2.5 py-1 rounded-lg flex items-center gap-1 font-medium transition-colors cursor-pointer"
+                  >
+                    <Download className="h-3.5 w-3.5" /> CSV (.csv)
+                  </button>
+                </div>
 
                 <button
                   type="button"
                   onClick={() => handleProcessText(formatExample, 'Sample Template')}
-                  className="text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-medium cursor-pointer"
+                  className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-medium cursor-pointer"
                 >
                   Load Sample Values
                 </button>
               </div>
 
               {/* Paste Text Area */}
-              <div className="pt-3">
+              <div className="pt-2">
                 <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                  Or Paste Raw CSV Lines Directly:
+                  Or Paste Raw Lines Directly (ISBN, Quantity):
                 </label>
                 <textarea
                   rows={3}
@@ -225,15 +253,18 @@ export const UploadModal: React.FC<UploadModalProps> = ({
           ) : (
             <div className="space-y-4">
               {/* Summary Stats */}
-              <div className="flex items-center justify-between p-3 bg-slate-100 dark:bg-slate-800/80 rounded-xl text-xs">
+              <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-slate-100 dark:bg-slate-800/80 rounded-xl text-xs">
                 <div className="flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-indigo-500" />
+                  <FileText className="h-4 w-4 text-indigo-500 shrink-0" />
                   <span className="font-semibold text-slate-800 dark:text-slate-200">{fileName}</span>
-                  <span className="text-slate-400">({parsedResult.rows.length} lines detected)</span>
+                  <span className="text-slate-400">({parsedResult.rows.length} rows detected)</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 font-medium">
                     {parsedResult.validCount} valid
+                  </span>
+                  <span className="px-2 py-0.5 rounded bg-cyan-100 dark:bg-cyan-950/60 text-cyan-700 dark:text-cyan-300 font-medium">
+                    {parsedResult.matchedCount} matched in catalogue
                   </span>
                   {parsedResult.invalidCount > 0 && (
                     <span className="px-2 py-0.5 rounded bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 font-medium">
@@ -242,8 +273,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({
                   )}
                   <button
                     onClick={handleReset}
-                    className="p-1 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer"
-                    title="Change file"
+                    className="p-1 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer ml-1"
+                    title="Upload different file"
                   >
                     <RefreshCw className="h-3.5 w-3.5" />
                   </button>
@@ -251,7 +282,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
               </div>
 
               {/* Parsed Rows Preview Table */}
-              <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden max-h-60 overflow-y-auto">
+              <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden max-h-72 overflow-y-auto">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 uppercase tracking-wider font-semibold sticky top-0 border-b border-slate-200 dark:border-slate-700">
                     <tr>
@@ -260,7 +291,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
                       <th className="p-2.5 text-right">Current</th>
                       <th className="p-2.5 text-right">New {isStockBalance ? 'Balance' : 'Extra PO'}</th>
                       <th className="p-2.5 text-right">Delta</th>
-                      <th className="p-2.5 text-center">Status</th>
+                      <th className="p-2.5 text-center">Validation Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-mono">
@@ -281,8 +312,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({
                           <td className="p-2.5 font-bold text-slate-800 dark:text-slate-200">
                             {row.isbn}
                           </td>
-                          <td className="p-2.5 font-sans truncate max-w-[180px] text-slate-600 dark:text-slate-400">
-                            {item ? item.title : <span className="text-amber-500 italic">Not in catalogue</span>}
+                          <td className="p-2.5 font-sans truncate max-w-[220px] text-slate-600 dark:text-slate-300">
+                            {item ? item.title : <span className="text-amber-500 italic">Not in 36-book catalogue</span>}
                           </td>
                           <td className="p-2.5 text-right text-slate-500">
                             {currentVal !== null ? currentVal : '—'}
@@ -300,7 +331,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
                           <td className="p-2.5 text-center">
                             {row.isValid ? (
                               <span className="inline-flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 font-sans font-medium">
-                                <CheckCircle2 className="h-3 w-3" /> Ready
+                                <CheckCircle2 className="h-3 w-3" /> Valid Match
                               </span>
                             ) : (
                               <span className="inline-flex items-center gap-1 text-[11px] text-rose-600 dark:text-rose-400 font-sans font-medium" title={row.error}>
@@ -319,7 +350,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
                 <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-xl text-xs text-amber-800 dark:text-amber-300">
                   <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-amber-600" />
                   <div>
-                    Some ISBNs in this file are not yet registered in the inventory catalogue. Only matched books will have their values updated.
+                    Some ISBNs in this file were not found in the 36-title catalogue. Matched books will have their values applied immediately.
                   </div>
                 </div>
               )}

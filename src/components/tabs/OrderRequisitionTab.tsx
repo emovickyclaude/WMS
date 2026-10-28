@@ -14,7 +14,7 @@ import {
   BookOpen
 } from 'lucide-react';
 import { InventoryItem, calculateShortage } from '../../types/inventory';
-import { exportRequisitionsCsv } from '../../utils/csvUtils';
+import { exportRequisitions, exportRequisitionsCsv } from '../../utils/csvUtils';
 
 import { UserPermissions } from '../../types/auth';
 
@@ -180,19 +180,35 @@ export const OrderRequisitionTab: React.FC<OrderRequisitionTabProps> = ({
               </button>
             )}
 
-            <button
-              disabled={permissions && !permissions.canExportData}
-              onClick={() => exportRequisitionsCsv(items, statusFilter === 'DEFICIT')}
-              className={`px-3 py-2 border text-xs font-medium rounded-xl flex items-center gap-1.5 transition-colors ${
-                permissions && !permissions.canExportData
-                  ? 'border-slate-200 dark:border-slate-800 text-slate-400 cursor-not-allowed opacity-60'
-                  : 'border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer'
-              }`}
-              title={permissions && !permissions.canExportData ? 'Export restricted by Admin' : 'Download filtered items to CSV'}
-            >
-              <Download className="h-3.5 w-3.5 text-slate-500" />
-              <span>Export CSV</span>
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                disabled={permissions && !permissions.canExportData}
+                onClick={() => exportRequisitions(items, 'xlsx', statusFilter === 'DEFICIT')}
+                className={`px-3 py-2 border text-xs font-medium rounded-xl flex items-center gap-1.5 transition-colors ${
+                  permissions && !permissions.canExportData
+                    ? 'border-slate-200 dark:border-slate-800 text-slate-400 cursor-not-allowed opacity-60'
+                    : 'border-emerald-300 dark:border-emerald-800/80 bg-emerald-50/50 dark:bg-emerald-950/30 hover:bg-emerald-100 dark:hover:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 cursor-pointer shadow-sm'
+                }`}
+                title={permissions && !permissions.canExportData ? 'Export restricted by Admin' : 'Download report as Excel (.xlsx)'}
+              >
+                <Download className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>Export Excel</span>
+              </button>
+
+              <button
+                disabled={permissions && !permissions.canExportData}
+                onClick={() => exportRequisitions(items, 'csv', statusFilter === 'DEFICIT')}
+                className={`px-3 py-2 border text-xs font-medium rounded-xl flex items-center gap-1.5 transition-colors ${
+                  permissions && !permissions.canExportData
+                    ? 'border-slate-200 dark:border-slate-800 text-slate-400 cursor-not-allowed opacity-60'
+                    : 'border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer'
+                }`}
+                title={permissions && !permissions.canExportData ? 'Export restricted by Admin' : 'Download report as CSV (.csv)'}
+              >
+                <Download className="h-3.5 w-3.5 text-slate-500" />
+                <span>Export CSV</span>
+              </button>
+            </div>
 
             {/* Direct 2 icon quick triggers */}
             <div className="h-6 w-[1px] bg-slate-200 dark:bg-slate-700 hidden sm:block mx-1" />
