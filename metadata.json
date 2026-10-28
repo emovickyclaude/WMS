@@ -1,0 +1,6 @@
+{
+  "name": "LogiFlow WMS — Order Management",
+  "description": "LogiFlow Warehouse Order Management & Inventory Control system with preset safety stock thresholds, dual CSV upload for stock balance and extra PO, and automated supplier shortage calculations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
