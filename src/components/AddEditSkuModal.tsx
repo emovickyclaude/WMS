@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Plus, ShieldCheck, Tag, Building2, DollarSign } from 'lucide-react';
+import { X, ShieldCheck, BookOpen } from 'lucide-react';
 import { InventoryItem } from '../types/inventory';
 
 interface AddEditSkuModalProps {
@@ -17,26 +17,26 @@ export const AddEditSkuModal: React.FC<AddEditSkuModalProps> = ({
 }) => {
   const isEditing = !!itemToEdit;
 
-  const [sku, setSku] = useState<string>(itemToEdit?.sku || '');
-  const [name, setName] = useState<string>(itemToEdit?.name || '');
-  const [category, setCategory] = useState<string>(itemToEdit?.category || 'Electronics');
+  const [isbn, setIsbn] = useState<string>(itemToEdit?.isbn || '');
+  const [title, setTitle] = useState<string>(itemToEdit?.title || '');
+  const [category, setCategory] = useState<string>(itemToEdit?.category || 'Computer Science & Software');
   const [presetMinStock, setPresetMinStock] = useState<number>(itemToEdit?.presetMinStock ?? 50);
   const [stockBalance, setStockBalance] = useState<number>(itemToEdit?.stockBalance ?? 0);
   const [extraPoStock, setExtraPoStock] = useState<number>(itemToEdit?.extraPoStock ?? 0);
-  const [supplier, setSupplier] = useState<string>(itemToEdit?.supplier || 'Apex Industrial Supply');
-  const [unit, setUnit] = useState<string>(itemToEdit?.unit || 'pcs');
-  const [unitCost, setUnitCost] = useState<number>(itemToEdit?.unitCost ?? 25.0);
-  const [location, setLocation] = useState<string>(itemToEdit?.location || 'Zone A - Bin 01');
+  const [supplier, setSupplier] = useState<string>(itemToEdit?.supplier || 'Pearson Education Publishing');
+  const [unit, setUnit] = useState<string>(itemToEdit?.unit || 'copies');
+  const [unitCost, setUnitCost] = useState<number>(itemToEdit?.unitCost ?? 35.0);
+  const [location, setLocation] = useState<string>(itemToEdit?.location || 'Aisle B - Shelf 01');
 
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!sku.trim() || !name.trim()) return;
+    if (!isbn.trim() || !title.trim()) return;
 
     const newItem: InventoryItem = {
-      sku: sku.trim().toUpperCase(),
-      name: name.trim(),
+      isbn: isbn.trim(),
+      title: title.trim(),
       category: category.trim(),
       presetMinStock: Math.max(0, presetMinStock),
       stockBalance: Math.max(0, stockBalance),
@@ -59,21 +59,21 @@ export const AddEditSkuModal: React.FC<AddEditSkuModalProps> = ({
         <div className="p-4 sm:p-5 bg-gradient-to-r from-slate-900 to-indigo-950 text-white flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
-              <ShieldCheck className="h-5 w-5" />
+              <BookOpen className="h-5 w-5" />
             </div>
             <div>
               <h3 className="text-base font-bold">
-                {isEditing ? `Edit SKU: ${itemToEdit.sku}` : 'Register New Inventory SKU'}
+                {isEditing ? `Edit Book: ${itemToEdit.isbn}` : 'Register New Book Title (ISBN)'}
               </h3>
               <p className="text-xs text-slate-300">
-                Preset minimum required stock safety threshold
+                Preset minimum required safety stock threshold from Minimum Qty.xlsx
               </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/10"
+            className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 cursor-pointer"
           >
             <X className="h-5 w-5" />
           </button>
@@ -84,15 +84,15 @@ export const AddEditSkuModal: React.FC<AddEditSkuModalProps> = ({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                SKU Code *
+                ISBN-13 *
               </label>
               <input
                 type="text"
                 required
                 disabled={isEditing}
-                placeholder="e.g. SKU-1011"
-                value={sku}
-                onChange={e => setSku(e.target.value)}
+                placeholder="e.g. 978-0-13-468599-1"
+                value={isbn}
+                onChange={e => setIsbn(e.target.value)}
                 className="w-full text-xs font-mono p-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 uppercase focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-60"
               />
             </div>
@@ -106,27 +106,28 @@ export const AddEditSkuModal: React.FC<AddEditSkuModalProps> = ({
                 onChange={e => setCategory(e.target.value)}
                 className="w-full text-xs p-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
-                <option value="Electronics">Electronics</option>
-                <option value="Fasteners & Hardware">Fasteners & Hardware</option>
-                <option value="Packaging">Packaging</option>
-                <option value="Fluid Power">Fluid Power</option>
-                <option value="Power Systems">Power Systems</option>
-                <option value="Networking">Networking</option>
-                <option value="Raw Materials">Raw Materials</option>
+                <option value="Computer Science & Software">Computer Science & Software</option>
+                <option value="Academic & Algorithms">Academic & Algorithms</option>
+                <option value="Programming & Data">Programming & Data</option>
+                <option value="Cloud & Infrastructure">Cloud & Infrastructure</option>
+                <option value="Finance & Business">Finance & Business</option>
+                <option value="Non-Fiction & Science">Non-Fiction & Science</option>
+                <option value="Psychology & Economics">Psychology & Economics</option>
+                <option value="Literature & Fiction">Literature & Fiction</option>
               </select>
             </div>
           </div>
 
           <div>
             <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-              Item Name / Description *
+              Book Title *
             </label>
             <input
               type="text"
               required
-              placeholder="e.g. Optical Fiber Patch Cable 5M Duplex"
-              value={name}
-              onChange={e => setName(e.target.value)}
+              placeholder="e.g. Designing Data-Intensive Applications"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
               className="w-full text-xs p-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
@@ -136,10 +137,10 @@ export const AddEditSkuModal: React.FC<AddEditSkuModalProps> = ({
             <div className="flex items-center justify-between mb-1">
               <label className="text-xs font-bold text-amber-900 dark:text-amber-300 flex items-center gap-1.5">
                 <ShieldCheck className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                Preset Minimum Required Stock (Safety Threshold) *
+                Preset Minimum Required Stock (from Minimum Qty.xlsx) *
               </label>
               <span className="text-[10px] text-amber-700 dark:text-amber-400 font-mono">
-                System Benchmark
+                System Preset
               </span>
             </div>
             <input
@@ -151,7 +152,7 @@ export const AddEditSkuModal: React.FC<AddEditSkuModalProps> = ({
               className="w-full text-base font-mono font-bold p-2 rounded-lg border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
             />
             <p className="text-[11px] text-amber-800/80 dark:text-amber-400/80 mt-1">
-              When physical stock + extra PO falls below this quantity, system immediately flags "Qty Not Sufficient".
+              Safety threshold established for this ISBN. When physical stock + extra PO falls below this quantity, the system flags "Qty Not Sufficient".
             </p>
           </div>
 
@@ -185,11 +186,11 @@ export const AddEditSkuModal: React.FC<AddEditSkuModalProps> = ({
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-2">
               <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Preferred Supplier
+                Publisher / Supplier
               </label>
               <input
                 type="text"
-                placeholder="Supplier Company"
+                placeholder="Publisher Name"
                 value={supplier}
                 onChange={e => setSupplier(e.target.value)}
                 className="w-full text-xs p-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -198,11 +199,11 @@ export const AddEditSkuModal: React.FC<AddEditSkuModalProps> = ({
 
             <div>
               <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Unit (pcs, box)
+                Unit (copies)
               </label>
               <input
                 type="text"
-                placeholder="pcs"
+                placeholder="copies"
                 value={unit}
                 onChange={e => setUnit(e.target.value)}
                 className="w-full text-xs p-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -227,11 +228,11 @@ export const AddEditSkuModal: React.FC<AddEditSkuModalProps> = ({
 
             <div>
               <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Warehouse Location
+                Warehouse Shelf Location
               </label>
               <input
                 type="text"
-                placeholder="Zone A - Bin 01"
+                placeholder="Aisle B - Shelf 01"
                 value={location}
                 onChange={e => setLocation(e.target.value)}
                 className="w-full text-xs p-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -251,7 +252,7 @@ export const AddEditSkuModal: React.FC<AddEditSkuModalProps> = ({
               type="submit"
               className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-md shadow-indigo-600/30 cursor-pointer"
             >
-              {isEditing ? 'Save Changes' : 'Register SKU'}
+              {isEditing ? 'Save Changes' : 'Register Book Title'}
             </button>
           </div>
         </form>

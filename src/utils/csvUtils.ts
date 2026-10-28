@@ -1,5 +1,10 @@
 import { InventoryItem, CsvParsedRow, UploadType, calculateShortage } from '../types/inventory';
 
+// Normalize ISBN for flexible matching (removes hyphens and spaces)
+function cleanIsbn(val: string): string {
+  return val.replace(/[-\s]/g, '').toUpperCase();
+}
+
 export function parseUploadCsv(
   csvText: string,
   uploadType: UploadType,
@@ -7,14 +12,22 @@ export function parseUploadCsv(
 ): { rows: CsvParsedRow[]; validCount: number; invalidCount: number; matchedCount: number } {
   const lines = csvText.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
   const rows: CsvParsedRow[] = [];
-  const itemMap = new Map(existingItems.map(item => [item.sku.toUpperCase(), item]));
 
-  // Check if first line looks like a header (contains non-numeric in second col or matches 'sku', 'stock', etc.)
+  // Index existing items by raw ISBN and normalized ISBN
+  const itemMap = new Map<string, InventoryItem>();
+  existingItems.forEach(item => {
+    itemMap.set(item.isbn.toUpperCase(), item);
+    itemMap.set(cleanIsbn(item.isbn), item);
+  });
+
+  // Check if first line is a header row
   let startIndex = 0;
   if (lines.length > 0) {
     const firstLineCols = lines[0].split(',').map(c => c.trim().toLowerCase());
     if (
+      firstLineCols[0].includes('isbn') || 
       firstLineCols[0].includes('sku') || 
+      firstLineCols[0].includes('title') || 
       firstLineCols[1]?.includes('stock') || 
       firstLineCols[1]?.includes('balance') || 
       firstLineCols[1]?.includes('po') || 
@@ -31,31 +44,30 @@ export function parseUploadCsv(
 
   for (let i = startIndex; i < lines.length; i++) {
     const rawLine = lines[i];
-    // Split by comma
     const parts = rawLine.split(',').map(p => p.trim().replace(/^["']|["']$/g, ''));
     if (parts.length < 2) {
       rows.push({
-        sku: parts[0] || 'Unknown',
+        isbn: parts[0] || 'Unknown',
         value: 0,
         rawLine,
         isValid: false,
-        error: 'Missing value column (format must be: SKU, Quantity)',
+        error: 'Missing value column (format: ISBN, Quantity)',
       });
       invalidCount++;
       continue;
     }
 
-    const sku = parts[0].trim();
+    const isbn = parts[0].trim();
     const rawValue = parts[1].trim();
     const numericValue = Number(rawValue);
 
-    if (!sku) {
+    if (!isbn) {
       rows.push({
-        sku: 'EMPTY',
+        isbn: 'EMPTY',
         value: 0,
         rawLine,
         isValid: false,
-        error: 'SKU code is empty',
+        error: 'ISBN is empty',
       });
       invalidCount++;
       continue;
@@ -63,23 +75,23 @@ export function parseUploadCsv(
 
     if (isNaN(numericValue) || numericValue < 0) {
       rows.push({
-        sku,
+        isbn,
         value: 0,
         rawLine,
         isValid: false,
-        error: `Invalid quantity "${rawValue}". Must be a non-negative number.`,
+        error: `Invalid quantity "${rawValue}". Must be a non-negative integer.`,
       });
       invalidCount++;
       continue;
     }
 
-    const matchedItem = itemMap.get(sku.toUpperCase());
+    const matchedItem = itemMap.get(isbn.toUpperCase()) || itemMap.get(cleanIsbn(isbn));
     if (matchedItem) {
       matchedCount++;
     }
 
     rows.push({
-      sku,
+      isbn,
       value: Math.round(numericValue),
       rawLine,
       isValid: true,
@@ -96,10 +108,10 @@ export function downloadSampleCsv(type: UploadType) {
   let filename = '';
 
   if (type === 'stock_balance') {
-    content = `SKU,stock_balance\nSKU-1001,15\nSKU-1002,50\nSKU-1003,30\nSKU-1004,20\nSKU-1005,60`;
+    content = `ISBN,stock_balance\n9781108742719,15\n9781108789943,20\n9781108819558,30\n9789815055344,25\n9781382006668,15\n9781382006729,18`;
     filename = 'stock_balance_sample.csv';
   } else {
-    content = `SKU,extra_po_stock\nSKU-1001,10\nSKU-1002,0\nSKU-1003,15\nSKU-1004,25\nSKU-1005,30`;
+    content = `ISBN,extra_po_stock\n9781108742719,10\n9781108789943,15\n9781108819558,10\n9789815055344,25\n9781382006668,10\n9781382006729,12`;
     filename = 'extra_po_sample.csv';
   }
 
@@ -112,26 +124,26 @@ export function exportRequisitionsCsv(items: InventoryItem[], filterOnlyDeficit 
     : items;
 
   const headers = [
-    'SKU',
-    'Item Name',
+    'ISBN',
+    'Book Title',
     'Category',
-    'Preset Min Stock',
+    'Preset Min Stock (Minimum Qty.xlsx)',
     'Current Stock Balance',
     'Extra PO Stock',
     'Shortage Qty',
-    'Status',
+    'Status Rule',
     'Qty to Order',
     'Unit Cost (USD)',
     'Estimated Total (USD)',
-    'Supplier',
-    'Warehouse Location'
+    'Publisher / Supplier',
+    'Warehouse Shelf Location'
   ];
 
   const rows = exportItems.map(item => {
     const calc = calculateShortage(item);
     return [
-      `"${item.sku}"`,
-      `"${item.name.replace(/"/g, '""')}"`,
+      `"${item.isbn}"`,
+      `"${item.title.replace(/"/g, '""')}"`,
       `"${item.category}"`,
       item.presetMinStock,
       item.stockBalance,
@@ -147,7 +159,7 @@ export function exportRequisitionsCsv(items: InventoryItem[], filterOnlyDeficit 
   });
 
   const csvString = [headers.join(','), ...rows].join('\n');
-  const filename = `LogiFlow_PO_Requisition_${new Date().toISOString().slice(0, 10)}.csv`;
+  const filename = `LogiFlow_Book_Requisition_${new Date().toISOString().slice(0, 10)}.csv`;
   triggerDownload(csvString, filename, 'text/csv');
 }
 

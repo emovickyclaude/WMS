@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
-import { Calculator, AlertTriangle, CheckCircle2, ArrowRight, Sparkles } from 'lucide-react';
-import { InventoryItem, calculateShortage } from '../types/inventory';
+import { Calculator, AlertTriangle, CheckCircle2, ArrowRight, Sparkles, BookOpen } from 'lucide-react';
+import { InventoryItem } from '../types/inventory';
 
 interface FormulaBannerProps {
   selectedItem?: InventoryItem | null;
 }
 
 export const FormulaBanner: React.FC<FormulaBannerProps> = ({ selectedItem }) => {
-  const [testMin, setTestMin] = useState<number>(40);
-  const [testBal, setTestBal] = useState<number>(15);
-  const [testPo, setTestPo] = useState<number>(10);
+  const [testMin, setTestMin] = useState<number>(50);
+  const [testBal, setTestBal] = useState<number>(4);
+  const [testPo, setTestPo] = useState<number>(2);
   const [isInteractive, setIsInteractive] = useState<boolean>(false);
 
   // If item is selected, display its live numbers; otherwise interactive simulation
@@ -33,13 +33,20 @@ export const FormulaBanner: React.FC<FormulaBannerProps> = ({ selectedItem }) =>
                 Core Shortage Calculation Engine
               </h3>
               <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 font-mono">
-                Phase 1 Logic
+                Preset (50)
               </span>
             </div>
-            <p className="text-xs text-slate-400">
-              {selectedItem 
-                ? `Showing active calculation for ${selectedItem.sku} (${selectedItem.name})`
-                : 'Shortage Qty = Preset Min Stock − Stock Balance − Extra PO Stock'}
+            <p className="text-xs text-slate-400 flex items-center gap-1.5 mt-0.5">
+              {selectedItem ? (
+                <>
+                  <BookOpen className="h-3 w-3 text-amber-400 inline" />
+                  <span>
+                    Active calculation for <strong>{selectedItem.isbn}</strong>: "{selectedItem.title}"
+                  </span>
+                </>
+              ) : (
+                'Shortage Qty = Preset Min Stock (50) − Stock Balance − Extra PO Stock'
+              )}
             </p>
           </div>
         </div>
@@ -47,7 +54,7 @@ export const FormulaBanner: React.FC<FormulaBannerProps> = ({ selectedItem }) =>
         <div className="flex items-center gap-2 text-xs">
           <button
             onClick={() => setIsInteractive(!isInteractive)}
-            className={`px-3 py-1.5 rounded-lg border transition-all flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-lg border transition-all flex items-center gap-1.5 cursor-pointer ${
               isInteractive 
                 ? 'bg-amber-500 text-slate-950 font-medium border-amber-400 shadow-sm'
                 : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-600'
@@ -65,7 +72,7 @@ export const FormulaBanner: React.FC<FormulaBannerProps> = ({ selectedItem }) =>
         <div className="lg:col-span-8 grid grid-cols-3 sm:grid-cols-7 items-center gap-2 text-center text-xs sm:text-sm">
           {/* Preset Minimum Required Stock */}
           <div className="col-span-1 sm:col-span-2 bg-slate-800/80 rounded-xl p-3 border border-slate-700">
-            <span className="text-[11px] block uppercase tracking-wider text-slate-400 font-medium">
+            <span className="text-[11px] block uppercase tracking-wider text-slate-400 font-medium truncate">
               Preset Min Stock
             </span>
             {isInteractive && !selectedItem ? (
@@ -81,7 +88,7 @@ export const FormulaBanner: React.FC<FormulaBannerProps> = ({ selectedItem }) =>
                 {min}
               </div>
             )}
-            <span className="text-[10px] text-slate-500 block truncate">Safety Threshold</span>
+            <span className="text-[10px] text-slate-400 block truncate">Preset from Minimum Qty.xlsx</span>
           </div>
 
           <div className="col-span-1 sm:col-span-0.5 flex justify-center text-slate-400 text-lg sm:text-2xl font-black">
@@ -106,7 +113,7 @@ export const FormulaBanner: React.FC<FormulaBannerProps> = ({ selectedItem }) =>
                 {bal}
               </div>
             )}
-            <span className="text-[10px] text-slate-500 block truncate">Physical On-Hand</span>
+            <span className="text-[10px] text-slate-400 block truncate">Physical On-Hand</span>
           </div>
 
           <div className="col-span-1 sm:col-span-0.5 flex justify-center text-slate-400 text-lg sm:text-2xl font-black">
@@ -131,7 +138,7 @@ export const FormulaBanner: React.FC<FormulaBannerProps> = ({ selectedItem }) =>
                 {po}
               </div>
             )}
-            <span className="text-[10px] text-slate-500 block truncate">Inbound Orders</span>
+            <span className="text-[10px] text-slate-400 block truncate">Inbound Orders</span>
           </div>
         </div>
 

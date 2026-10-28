@@ -8,16 +8,15 @@ import {
   ShoppingCart, 
   Package, 
   Truck, 
-  ChevronRight, 
   Copy, 
   Check, 
-  Layers,
   ArrowUpDown,
-  SlidersHorizontal,
-  ExternalLink
+  BookOpen
 } from 'lucide-react';
 import { InventoryItem, calculateShortage } from '../../types/inventory';
 import { exportRequisitionsCsv } from '../../utils/csvUtils';
+
+import { UserPermissions } from '../../types/auth';
 
 interface OrderRequisitionTabProps {
   items: InventoryItem[];
@@ -27,6 +26,7 @@ interface OrderRequisitionTabProps {
   onOrderSingleItem: (item: InventoryItem) => void;
   onOrderAllDeficits: () => void;
   onEditItem: (item: InventoryItem) => void;
+  permissions?: UserPermissions;
 }
 
 export const OrderRequisitionTab: React.FC<OrderRequisitionTabProps> = ({
@@ -37,12 +37,13 @@ export const OrderRequisitionTab: React.FC<OrderRequisitionTabProps> = ({
   onOrderSingleItem,
   onOrderAllDeficits,
   onEditItem,
+  permissions,
 }) => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'DEFICIT' | 'SUFFICIENT'>('ALL');
   const [categoryFilter, setCategoryFilter] = useState<string>('ALL');
-  const [copiedSku, setCopiedSku] = useState<string | null>(null);
-  const [sortField, setSortField] = useState<'shortage' | 'sku' | 'name' | 'minStock'>('shortage');
+  const [copiedIsbn, setCopiedIsbn] = useState<string | null>(null);
+  const [sortField, setSortField] = useState<'shortage' | 'isbn' | 'title' | 'minStock'>('shortage');
   const [sortAsc, setSortAsc] = useState<boolean>(false);
 
   // Extract categories
@@ -80,11 +81,11 @@ export const OrderRequisitionTab: React.FC<OrderRequisitionTabProps> = ({
         // Search query
         if (searchQuery.trim()) {
           const q = searchQuery.toLowerCase();
-          const matchSku = item.sku.toLowerCase().includes(q);
-          const matchName = item.name.toLowerCase().includes(q);
+          const matchIsbn = item.isbn.toLowerCase().includes(q);
+          const matchTitle = item.title.toLowerCase().includes(q);
           const matchSupplier = item.supplier.toLowerCase().includes(q);
           const matchLoc = (item.location || '').toLowerCase().includes(q);
-          return matchSku || matchName || matchSupplier || matchLoc;
+          return matchIsbn || matchTitle || matchSupplier || matchLoc;
         }
 
         return true;
@@ -93,10 +94,10 @@ export const OrderRequisitionTab: React.FC<OrderRequisitionTabProps> = ({
         let diff = 0;
         if (sortField === 'shortage') {
           diff = a.analysis.shortageQty - b.analysis.shortageQty;
-        } else if (sortField === 'sku') {
-          diff = a.item.sku.localeCompare(b.item.sku);
-        } else if (sortField === 'name') {
-          diff = a.item.name.localeCompare(b.item.name);
+        } else if (sortField === 'isbn') {
+          diff = a.item.isbn.localeCompare(b.item.isbn);
+        } else if (sortField === 'title') {
+          diff = a.item.title.localeCompare(b.item.title);
         } else if (sortField === 'minStock') {
           diff = a.item.presetMinStock - b.item.presetMinStock;
         }
@@ -104,11 +105,11 @@ export const OrderRequisitionTab: React.FC<OrderRequisitionTabProps> = ({
       });
   }, [analyzedItems, statusFilter, categoryFilter, searchQuery, sortField, sortAsc]);
 
-  const handleCopySku = (sku: string, e: React.MouseEvent) => {
+  const handleCopyIsbn = (isbn: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    navigator.clipboard.writeText(sku);
-    setCopiedSku(sku);
-    setTimeout(() => setCopiedSku(null), 2000);
+    navigator.clipboard.writeText(isbn);
+    setCopiedIsbn(isbn);
+    setTimeout(() => setCopiedIsbn(null), 2000);
   };
 
   const handleSort = (field: typeof sortField) => {
@@ -135,7 +136,7 @@ export const OrderRequisitionTab: React.FC<OrderRequisitionTabProps> = ({
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              All Items ({totalCount})
+              All Titles ({totalCount})
             </button>
             <button
               onClick={() => setStatusFilter('DEFICIT')}
@@ -161,22 +162,33 @@ export const OrderRequisitionTab: React.FC<OrderRequisitionTabProps> = ({
             </button>
           </div>
 
-          {/* Quick Actions (Upload shortcuts & Requisition Generation) */}
+          {/* Quick Actions */}
           <div className="flex flex-wrap items-center gap-2">
             {deficitCount > 0 && (
               <button
+                disabled={permissions && !permissions.canCreatePo}
                 onClick={onOrderAllDeficits}
-                className="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 shadow-sm shadow-rose-600/30 transition-all cursor-pointer"
+                className={`px-3.5 py-2 text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 shadow-sm transition-all ${
+                  permissions && !permissions.canCreatePo
+                    ? 'bg-slate-400 dark:bg-slate-700 cursor-not-allowed opacity-60'
+                    : 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/30 cursor-pointer'
+                }`}
+                title={permissions && !permissions.canCreatePo ? 'Ordering restricted by Admin' : 'Order all deficit titles'}
               >
                 <ShoppingCart className="h-3.5 w-3.5" />
-                <span>Order All {deficitCount} Deficits ({totalUnitsToOrder} units)</span>
+                <span>Order All {deficitCount} Deficits ({totalUnitsToOrder} copies)</span>
               </button>
             )}
 
             <button
+              disabled={permissions && !permissions.canExportData}
               onClick={() => exportRequisitionsCsv(items, statusFilter === 'DEFICIT')}
-              className="px-3 py-2 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-medium rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
-              title="Download filtered items to CSV"
+              className={`px-3 py-2 border text-xs font-medium rounded-xl flex items-center gap-1.5 transition-colors ${
+                permissions && !permissions.canExportData
+                  ? 'border-slate-200 dark:border-slate-800 text-slate-400 cursor-not-allowed opacity-60'
+                  : 'border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 cursor-pointer'
+              }`}
+              title={permissions && !permissions.canExportData ? 'Export restricted by Admin' : 'Download filtered items to CSV'}
             >
               <Download className="h-3.5 w-3.5 text-slate-500" />
               <span>Export CSV</span>
@@ -186,18 +198,28 @@ export const OrderRequisitionTab: React.FC<OrderRequisitionTabProps> = ({
             <div className="h-6 w-[1px] bg-slate-200 dark:bg-slate-700 hidden sm:block mx-1" />
 
             <button
+              disabled={permissions && !permissions.canUploadStockBalance}
               onClick={() => onOpenUpload('stock_balance')}
-              className="px-3 py-2 bg-cyan-50 dark:bg-cyan-950/40 hover:bg-cyan-100 dark:hover:bg-cyan-950/70 text-cyan-800 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-800/60 text-xs font-medium rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
-              title="Upload Stock Balance CSV"
+              className={`px-3 py-2 border text-xs font-medium rounded-xl flex items-center gap-1.5 transition-colors ${
+                permissions && !permissions.canUploadStockBalance
+                  ? 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 cursor-not-allowed opacity-60'
+                  : 'bg-cyan-50 dark:bg-cyan-950/40 hover:bg-cyan-100 dark:hover:bg-cyan-950/70 text-cyan-800 dark:text-cyan-300 border-cyan-200 dark:border-cyan-800/60 cursor-pointer'
+              }`}
+              title={permissions && !permissions.canUploadStockBalance ? 'Stock balance upload option restricted by Admin' : 'Upload Stock Balance CSV'}
             >
               <Package className="h-3.5 w-3.5 text-cyan-600 dark:text-cyan-400" />
               <span>Upload Stock Balance</span>
             </button>
 
             <button
+              disabled={permissions && !permissions.canUploadExtraPo}
               onClick={() => onOpenUpload('extra_po')}
-              className="px-3 py-2 bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-100 dark:hover:bg-purple-950/70 text-purple-800 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60 text-xs font-medium rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
-              title="Upload Extra PO Stock CSV"
+              className={`px-3 py-2 border text-xs font-medium rounded-xl flex items-center gap-1.5 transition-colors ${
+                permissions && !permissions.canUploadExtraPo
+                  ? 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 cursor-not-allowed opacity-60'
+                  : 'bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-100 dark:hover:bg-purple-950/70 text-purple-800 dark:text-purple-300 border-purple-200 dark:border-purple-800/60 cursor-pointer'
+              }`}
+              title={permissions && !permissions.canUploadExtraPo ? 'Extra PO upload option restricted by Admin' : 'Upload Extra PO Stock CSV'}
             >
               <Truck className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
               <span>Upload Extra PO</span>
@@ -211,7 +233,7 @@ export const OrderRequisitionTab: React.FC<OrderRequisitionTabProps> = ({
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <input
               type="text"
-              placeholder="Search by SKU, item name, supplier, or location..."
+              placeholder="Search by ISBN-13, book title, publisher, or shelf location..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               className="w-full text-xs pl-9 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -219,7 +241,7 @@ export const OrderRequisitionTab: React.FC<OrderRequisitionTabProps> = ({
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600 cursor-pointer"
               >
                 Clear
               </button>
@@ -251,20 +273,20 @@ export const OrderRequisitionTab: React.FC<OrderRequisitionTabProps> = ({
             <thead className="bg-slate-100/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-200 dark:border-slate-800">
               <tr>
                 <th 
-                  onClick={() => handleSort('sku')}
+                  onClick={() => handleSort('isbn')}
                   className="p-3.5 font-semibold cursor-pointer hover:text-slate-900 dark:hover:text-white"
                 >
                   <div className="flex items-center gap-1.5">
-                    <span>SKU Code</span>
+                    <span>ISBN-13</span>
                     <ArrowUpDown className="h-3 w-3" />
                   </div>
                 </th>
                 <th 
-                  onClick={() => handleSort('name')}
+                  onClick={() => handleSort('title')}
                   className="p-3.5 font-semibold cursor-pointer hover:text-slate-900 dark:hover:text-white"
                 >
                   <div className="flex items-center gap-1.5">
-                    <span>Item Name & Category</span>
+                    <span>Book Title & Publisher</span>
                     <ArrowUpDown className="h-3 w-3" />
                   </div>
                 </th>
@@ -305,15 +327,15 @@ export const OrderRequisitionTab: React.FC<OrderRequisitionTabProps> = ({
               {filteredItems.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="p-10 text-center text-slate-400">
-                    No SKUs matched the current filters.
+                    No book titles matched the current filters.
                   </td>
                 </tr>
               ) : (
                 filteredItems.map(({ item, analysis }) => {
-                  const isSelected = selectedItem?.sku === item.sku;
+                  const isSelected = selectedItem?.isbn === item.isbn;
                   return (
                     <tr
-                      key={item.sku}
+                      key={item.isbn}
                       onClick={() => onSelectItem(isSelected ? null : item)}
                       className={`hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors cursor-pointer ${
                         isSelected 
@@ -323,18 +345,18 @@ export const OrderRequisitionTab: React.FC<OrderRequisitionTabProps> = ({
                             : ''
                       }`}
                     >
-                      {/* SKU */}
+                      {/* ISBN */}
                       <td className="p-3.5">
                         <div className="flex items-center gap-1.5">
-                          <span className="font-mono font-bold text-slate-900 dark:text-slate-100 text-sm">
-                            {item.sku}
+                          <span className="font-mono font-bold text-slate-900 dark:text-slate-100 text-xs sm:text-sm">
+                            {item.isbn}
                           </span>
                           <button
-                            onClick={e => handleCopySku(item.sku, e)}
-                            className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded"
-                            title="Copy SKU code"
+                            onClick={e => handleCopyIsbn(item.isbn, e)}
+                            className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded cursor-pointer"
+                            title="Copy ISBN"
                           >
-                            {copiedSku === item.sku ? (
+                            {copiedIsbn === item.isbn ? (
                               <Check className="h-3 w-3 text-emerald-500" />
                             ) : (
                               <Copy className="h-3 w-3" />
@@ -343,15 +365,15 @@ export const OrderRequisitionTab: React.FC<OrderRequisitionTabProps> = ({
                         </div>
                         {item.location && (
                           <div className="text-[11px] text-slate-400 truncate mt-0.5">
-                            Loc: {item.location}
+                            Shelf: {item.location}
                           </div>
                         )}
                       </td>
 
-                      {/* Name & Category */}
-                      <td className="p-3.5 max-w-[220px]">
-                        <div className="font-medium text-slate-800 dark:text-slate-200 truncate" title={item.name}>
-                          {item.name}
+                      {/* Title & Category */}
+                      <td className="p-3.5 max-w-[240px]">
+                        <div className="font-medium text-slate-800 dark:text-slate-200 truncate" title={item.title}>
+                          {item.title}
                         </div>
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-medium">
@@ -363,7 +385,7 @@ export const OrderRequisitionTab: React.FC<OrderRequisitionTabProps> = ({
                         </div>
                       </td>
 
-                      {/* Preset Min Stock */}
+                      {/* Preset Min Stock (from Minimum Qty.xlsx) */}
                       <td className="p-3.5 text-right font-mono bg-amber-50/20 dark:bg-amber-950/10">
                         <span className="font-bold text-amber-700 dark:text-amber-400 text-sm">
                           {item.presetMinStock}
@@ -439,17 +461,28 @@ export const OrderRequisitionTab: React.FC<OrderRequisitionTabProps> = ({
                         <div className="flex items-center justify-end gap-1.5">
                           {analysis.isDeficit ? (
                             <button
+                              disabled={permissions && !permissions.canCreatePo}
                               onClick={() => onOrderSingleItem(item)}
-                              className="px-2.5 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-lg text-xs font-semibold flex items-center gap-1 shadow-sm transition-all cursor-pointer"
-                              title={`Create purchase order for ${analysis.orderQtyNeeded} ${item.unit}`}
+                              className={`px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 shadow-sm transition-all ${
+                                permissions && !permissions.canCreatePo
+                                  ? 'bg-slate-300 dark:bg-slate-700 text-slate-500 cursor-not-allowed opacity-60'
+                                  : 'bg-rose-600 hover:bg-rose-500 text-white cursor-pointer'
+                              }`}
+                              title={permissions && !permissions.canCreatePo ? 'Ordering restricted by Admin' : `Create purchase order for ${analysis.orderQtyNeeded} ${item.unit}`}
                             >
                               <ShoppingCart className="h-3 w-3" />
                               <span>Order +{analysis.orderQtyNeeded}</span>
                             </button>
                           ) : (
                             <button
+                              disabled={permissions && !permissions.canEditPresetMinStock}
                               onClick={() => onEditItem(item)}
-                              className="px-2.5 py-1.5 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-xs transition-colors cursor-pointer"
+                              className={`px-2.5 py-1.5 rounded-lg text-xs transition-colors ${
+                                permissions && !permissions.canEditPresetMinStock
+                                  ? 'text-slate-400 cursor-not-allowed opacity-50'
+                                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer'
+                              }`}
+                              title={permissions && !permissions.canEditPresetMinStock ? 'Preset editing restricted by Admin' : 'Configure preset'}
                             >
                               Preset Setup
                             </button>
@@ -467,11 +500,11 @@ export const OrderRequisitionTab: React.FC<OrderRequisitionTabProps> = ({
         {/* Footer info strip */}
         <div className="p-3 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between text-xs text-slate-500 gap-2">
           <div className="flex items-center gap-2">
-            <span>Formula: <code>Preset Min − Stock Balance − Extra PO</code></span>
-            <span>· Click any row to preview in calculation engine</span>
+            <span>Formula: <code>Preset Min (Minimum Qty.xlsx) − Stock Balance − Extra PO = Shortage</code></span>
+            <span>· Click any row to preview calculation</span>
           </div>
           <div>
-            Showing <strong>{filteredItems.length}</strong> of <strong>{items.length}</strong> SKUs
+            Showing <strong>{filteredItems.length}</strong> of <strong>{items.length}</strong> Book Titles
           </div>
         </div>
       </div>

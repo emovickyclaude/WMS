@@ -6,34 +6,40 @@ import {
   Check, 
   Save, 
   RotateCcw, 
-  Sliders, 
   Percent, 
   AlertTriangle,
-  Edit2
+  Edit2,
+  FileSpreadsheet
 } from 'lucide-react';
 import { InventoryItem, calculateShortage } from '../../types/inventory';
 
+import { UserPermissions } from '../../types/auth';
+
 interface PresetStockSetupTabProps {
   items: InventoryItem[];
-  onUpdateMinStock: (sku: string, newMin: number) => void;
+  onUpdateMinStock: (isbn: string, newMin: number) => void;
   onBatchAdjustMinStock: (percentage: number, categoryFilter?: string) => void;
+  onSetAllMinStock?: (qty: number) => void;
   onOpenAddSku: () => void;
   onOpenEditSku: (item: InventoryItem) => void;
   onResetDefaults: () => void;
+  permissions?: UserPermissions;
 }
 
 export const PresetStockSetupTab: React.FC<PresetStockSetupTabProps> = ({
   items,
   onUpdateMinStock,
   onBatchAdjustMinStock,
+  onSetAllMinStock,
   onOpenAddSku,
   onOpenEditSku,
   onResetDefaults,
+  permissions,
 }) => {
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [editingSku, setEditingSku] = useState<string | null>(null);
+  const [editingIsbn, setEditingIsbn] = useState<string | null>(null);
   const [tempMin, setTempMin] = useState<number>(0);
-  const [successSku, setSuccessSku] = useState<string | null>(null);
+  const [successIsbn, setSuccessIsbn] = useState<string | null>(null);
   const [showBatchModal, setShowBatchModal] = useState<boolean>(false);
   const [batchPercent, setBatchPercent] = useState<number>(10);
   const [batchCategory, setBatchCategory] = useState<string>('ALL');
@@ -43,20 +49,20 @@ export const PresetStockSetupTab: React.FC<PresetStockSetupTabProps> = ({
   const filteredItems = items.filter(item => {
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
-    return item.sku.toLowerCase().includes(q) || item.name.toLowerCase().includes(q) || item.category.toLowerCase().includes(q);
+    return item.isbn.toLowerCase().includes(q) || item.title.toLowerCase().includes(q) || item.category.toLowerCase().includes(q);
   });
 
   const handleStartInlineEdit = (item: InventoryItem) => {
-    setEditingSku(item.sku);
+    setEditingIsbn(item.isbn);
     setTempMin(item.presetMinStock);
   };
 
-  const handleSaveInline = (sku: string) => {
+  const handleSaveInline = (isbn: string) => {
     if (tempMin < 0) return;
-    onUpdateMinStock(sku, tempMin);
-    setEditingSku(null);
-    setSuccessSku(sku);
-    setTimeout(() => setSuccessSku(null), 2000);
+    onUpdateMinStock(isbn, tempMin);
+    setEditingIsbn(null);
+    setSuccessIsbn(isbn);
+    setTimeout(() => setSuccessIsbn(null), 2000);
   };
 
   const handleBatchSubmit = (e: React.FormEvent) => {
@@ -75,16 +81,32 @@ export const PresetStockSetupTab: React.FC<PresetStockSetupTabProps> = ({
               <ShieldCheck className="h-6 w-6" />
             </div>
             <div>
-              <h3 className="font-bold text-base sm:text-lg text-slate-100">
-                Preset Minimum Required Stock Setup
-              </h3>
-              <p className="text-xs text-slate-300">
-                Safety stock thresholds preset in the system. When physical stock + extra PO falls below these benchmarks, LogiFlow triggers automated supplier requisition orders.
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold text-base sm:text-lg text-slate-100">
+                  Preset Minimum Required Stock Setup
+                </h3>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 font-semibold flex items-center gap-1">
+                  <FileSpreadsheet className="h-3 w-3" /> Minimum Qty.xlsx
+                </span>
+              </div>
+              <p className="text-xs text-slate-300 mt-0.5">
+                Preset safety stock thresholds configured per ISBN. When physical inventory + extra PO stock falls below this threshold, LogiFlow generates an automated supplier reorder deficit.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {onSetAllMinStock && (
+              <button
+                onClick={() => onSetAllMinStock(50)}
+                className="px-3 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/50 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm"
+                title="Reset all book titles to maintain 50 copies safety stock preset as per Minimum Qty.xlsx"
+              >
+                <ShieldCheck className="h-3.5 w-3.5 text-amber-400" />
+                <span>Maintain 50 Copies (Preset All)</span>
+              </button>
+            )}
+
             <button
               onClick={() => setShowBatchModal(true)}
               className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 rounded-xl text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
@@ -98,7 +120,7 @@ export const PresetStockSetupTab: React.FC<PresetStockSetupTabProps> = ({
               className="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-md shadow-amber-500/20 transition-all cursor-pointer"
             >
               <Plus className="h-4 w-4" />
-              <span>Register New SKU</span>
+              <span>Register New Title</span>
             </button>
           </div>
         </div>
@@ -110,7 +132,7 @@ export const PresetStockSetupTab: React.FC<PresetStockSetupTabProps> = ({
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <input
             type="text"
-            placeholder="Search preset safety thresholds by SKU or name..."
+            placeholder="Search preset safety thresholds by ISBN or book title..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             className="w-full text-xs pl-9 pr-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-amber-500"
@@ -133,10 +155,10 @@ export const PresetStockSetupTab: React.FC<PresetStockSetupTabProps> = ({
           <table className="w-full text-left text-xs border-collapse">
             <thead className="bg-slate-100/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-200 dark:border-slate-800">
               <tr>
-                <th className="p-3.5">SKU Code</th>
-                <th className="p-3.5">Item Name & Category</th>
+                <th className="p-3.5">ISBN-13</th>
+                <th className="p-3.5">Book Title & Publisher</th>
                 <th className="p-3.5 text-right bg-amber-50/50 dark:bg-amber-950/20 text-amber-800 dark:text-amber-400 font-bold">
-                  Preset Minimum Required Stock
+                  Preset Min Stock (Minimum Qty.xlsx)
                 </th>
                 <th className="p-3.5 text-right">Current Balance</th>
                 <th className="p-3.5 text-right">Extra PO</th>
@@ -146,21 +168,21 @@ export const PresetStockSetupTab: React.FC<PresetStockSetupTabProps> = ({
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {filteredItems.map(item => {
-                const isEditing = editingSku === item.sku;
+                const isEditing = editingIsbn === item.isbn;
                 const calc = calculateShortage(item);
-                const isSuccess = successSku === item.sku;
+                const isSuccess = successIsbn === item.isbn;
 
                 return (
-                  <tr key={item.sku} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
-                    {/* SKU */}
+                  <tr key={item.isbn} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                    {/* ISBN */}
                     <td className="p-3.5 font-mono font-bold text-slate-900 dark:text-slate-100">
-                      {item.sku}
+                      {item.isbn}
                     </td>
 
-                    {/* Name */}
+                    {/* Title */}
                     <td className="p-3.5">
-                      <div className="font-medium text-slate-800 dark:text-slate-200 truncate max-w-[260px]">
-                        {item.name}
+                      <div className="font-medium text-slate-800 dark:text-slate-200 truncate max-w-[280px]">
+                        {item.title}
                       </div>
                       <div className="text-[11px] text-slate-400 mt-0.5">
                         {item.category} · {item.supplier}
@@ -178,14 +200,14 @@ export const PresetStockSetupTab: React.FC<PresetStockSetupTabProps> = ({
                             value={tempMin}
                             onChange={e => setTempMin(Math.max(0, parseInt(e.target.value) || 0))}
                             onKeyDown={e => {
-                              if (e.key === 'Enter') handleSaveInline(item.sku);
-                              if (e.key === 'Escape') setEditingSku(null);
+                              if (e.key === 'Enter') handleSaveInline(item.isbn);
+                              if (e.key === 'Escape') setEditingIsbn(null);
                             }}
                             className="w-20 text-right font-mono font-bold text-sm bg-white dark:bg-slate-900 border border-amber-400 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-amber-500"
                           />
                           <button
-                            onClick={() => handleSaveInline(item.sku)}
-                            className="p-1 bg-amber-500 text-slate-950 rounded hover:bg-amber-400"
+                            onClick={() => handleSaveInline(item.isbn)}
+                            className="p-1 bg-amber-500 text-slate-950 rounded hover:bg-amber-400 cursor-pointer"
                             title="Save threshold"
                           >
                             <Save className="h-3.5 w-3.5" />
@@ -198,7 +220,7 @@ export const PresetStockSetupTab: React.FC<PresetStockSetupTabProps> = ({
                           </span>
                           <button
                             onClick={() => handleStartInlineEdit(item)}
-                            className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-amber-500 rounded transition-opacity"
+                            className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-amber-500 rounded transition-opacity cursor-pointer"
                             title="Quick edit threshold"
                           >
                             <Edit2 className="h-3 w-3" />
@@ -265,7 +287,7 @@ export const PresetStockSetupTab: React.FC<PresetStockSetupTabProps> = ({
                   Batch Safety Stock Multiplier
                 </h4>
                 <p className="text-xs text-slate-500">
-                  Adjust minimum required stock levels uniformly (e.g. for peak season buffer)
+                  Adjust preset minimum required stock levels uniformly
                 </p>
               </div>
             </div>
@@ -280,7 +302,7 @@ export const PresetStockSetupTab: React.FC<PresetStockSetupTabProps> = ({
                   onChange={e => setBatchCategory(e.target.value)}
                   className="w-full text-xs p-2.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800"
                 >
-                  <option value="ALL">All Categories ({items.length} SKUs)</option>
+                  <option value="ALL">All Categories ({items.length} Titles)</option>
                   {categories.map(c => (
                     <option key={c} value={c}>{c}</option>
                   ))}
@@ -297,7 +319,7 @@ export const PresetStockSetupTab: React.FC<PresetStockSetupTabProps> = ({
                       key={val}
                       type="button"
                       onClick={() => setBatchPercent(val)}
-                      className={`py-1 text-xs font-mono font-medium rounded-lg border ${
+                      className={`py-1 text-xs font-mono font-medium rounded-lg border cursor-pointer ${
                         batchPercent === val 
                           ? 'bg-amber-500 text-slate-950 border-amber-500' 
                           : 'border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400'
@@ -319,13 +341,13 @@ export const PresetStockSetupTab: React.FC<PresetStockSetupTabProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowBatchModal(false)}
-                  className="px-3 py-1.5 text-xs border border-slate-300 dark:border-slate-700 rounded-lg"
+                  className="px-3 py-1.5 text-xs border border-slate-300 dark:border-slate-700 rounded-lg cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-1.5 text-xs bg-amber-500 text-slate-950 font-bold rounded-lg hover:bg-amber-400"
+                  className="px-4 py-1.5 text-xs bg-amber-500 text-slate-950 font-bold rounded-lg hover:bg-amber-400 cursor-pointer"
                 >
                   Apply Batch Multiplier
                 </button>

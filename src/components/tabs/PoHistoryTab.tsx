@@ -1,6 +1,6 @@
 import React from 'react';
 import { PurchaseOrderRecord } from '../../types/inventory';
-import { ShoppingBag, FileText, CheckCircle, ExternalLink, Calendar, Building2 } from 'lucide-react';
+import { ShoppingBag, Calendar, BookOpen } from 'lucide-react';
 
 interface PoHistoryTabProps {
   poRecords: PurchaseOrderRecord[];
@@ -20,10 +20,10 @@ export const PoHistoryTab: React.FC<PoHistoryTabProps> = ({
         <div>
           <h3 className="font-bold text-base sm:text-lg text-slate-900 dark:text-slate-100 flex items-center gap-2">
             <ShoppingBag className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-            Supplier Requisition Purchase Orders
+            Publisher & Supplier Requisition Orders
           </h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Log of purchase requisitions generated to replenish deficit stock from suppliers.
+            Log of purchase requisitions generated to replenish deficit stock from publishers and book distributors.
           </p>
         </div>
 
@@ -37,12 +37,12 @@ export const PoHistoryTab: React.FC<PoHistoryTabProps> = ({
 
       {poRecords.length === 0 ? (
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-12 text-center text-slate-400">
-          <ShoppingBag className="h-10 w-10 mx-auto mb-3 opacity-40 text-indigo-400" />
+          <BookOpen className="h-10 w-10 mx-auto mb-3 opacity-40 text-indigo-400" />
           <h4 className="font-medium text-slate-700 dark:text-slate-300 text-sm">
             No Supplier Requisitions Yet
           </h4>
           <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
-            When items are calculated as "Qty Not Sufficient", click "Order from Supplier" in the Order Requisition Engine to generate a formal purchase order.
+            When books are calculated as "Qty Not Sufficient", click "Order from Supplier" in the Order Requisition Engine to generate a formal purchase order.
           </p>
         </div>
       ) : (
@@ -82,10 +82,10 @@ export const PoHistoryTab: React.FC<PoHistoryTabProps> = ({
                   >
                     <div>
                       <div className="font-mono font-bold text-slate-800 dark:text-slate-200">
-                        {it.sku}
+                        {it.isbn}
                       </div>
                       <div className="text-[11px] text-slate-500 truncate max-w-[150px]">
-                        {it.name}
+                        {it.title}
                       </div>
                     </div>
                     <div className="text-right font-mono">

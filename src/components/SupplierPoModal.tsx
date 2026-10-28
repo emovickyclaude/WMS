@@ -2,12 +2,9 @@ import React, { useState } from 'react';
 import { 
   X, 
   Send, 
-  FileDown, 
   Copy, 
   Check, 
   Building2, 
-  AlertTriangle,
-  ArrowUpRight,
   PlusCircle
 } from 'lucide-react';
 import { InventoryItem, calculateShortage, PurchaseOrderRecord } from '../types/inventory';
@@ -28,21 +25,21 @@ export const SupplierPoModal: React.FC<SupplierPoModalProps> = ({
 }) => {
   const [copied, setCopied] = useState<boolean>(false);
   const [autoAddIncoming, setAutoAddIncoming] = useState<boolean>(true);
-  const [orderNotes, setOrderNotes] = useState<string>('Standard warehouse safety stock replenishment. Please expedite.');
+  const [orderNotes, setOrderNotes] = useState<string>('Standard warehouse book safety stock replenishment. Please expedite dispatch.');
 
   if (!isOpen || itemsToOrder.length === 0) return null;
 
   // Generate PO number
   const poNumber = `PO-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
-  // Calculate items and totals
+  // Calculate items and totals using ISBN and Title
   const orderItems = itemsToOrder.map(item => {
     const calc = calculateShortage(item);
     const qtyToOrder = calc.orderQtyNeeded;
     const totalCost = qtyToOrder * item.unitCost;
     return {
-      sku: item.sku,
-      name: item.name,
+      isbn: item.isbn,
+      title: item.title,
       supplier: item.supplier,
       qtyToOrder,
       unitCost: item.unitCost,
@@ -54,7 +51,7 @@ export const SupplierPoModal: React.FC<SupplierPoModalProps> = ({
   const totalUnits = orderItems.reduce((acc, curr) => acc + curr.qtyToOrder, 0);
   const totalCost = orderItems.reduce((acc, curr) => acc + curr.totalCost, 0);
 
-  // Group by supplier
+  // Group by publisher / supplier
   const supplierGroups: Record<string, typeof orderItems> = {};
   orderItems.forEach(item => {
     if (!supplierGroups[item.supplier]) supplierGroups[item.supplier] = [];
@@ -68,9 +65,9 @@ export const SupplierPoModal: React.FC<SupplierPoModalProps> = ({
       `Total Units: ${totalUnits}`,
       `Estimated Total: $${totalCost.toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
       '',
-      '--- ITEMS TO ORDER (LOGIFLOW WMS DEFICIT REQUISITION) ---',
+      '--- BOOKS TO ORDER (LOGIFLOW WMS DEFICIT REQUISITION) ---',
       ...orderItems.map(
-        i => `• SKU: ${i.sku} | ${i.name} | Qty: ${i.qtyToOrder} ${i.unit} | Unit: $${i.unitCost.toFixed(2)} | Supplier: ${i.supplier}`
+        i => `• ISBN: ${i.isbn} | "${i.title}" | Qty: ${i.qtyToOrder} ${i.unit} | Unit: $${i.unitCost.toFixed(2)} | Publisher/Supplier: ${i.supplier}`
       ),
       '',
       `Notes: ${orderNotes}`,
@@ -123,17 +120,17 @@ export const SupplierPoModal: React.FC<SupplierPoModalProps> = ({
                 <span className="text-xs uppercase font-mono px-2 py-0.5 rounded bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 font-bold">
                   {poNumber}
                 </span>
-                <h3 className="text-lg font-bold">Supplier Requisition Order</h3>
+                <h3 className="text-lg font-bold">Publisher / Supplier Requisition Order</h3>
               </div>
               <p className="text-xs text-slate-300">
-                Replenishing {orderItems.length} SKUs with insufficient inventory
+                Replenishing {orderItems.length} book titles with insufficient inventory
               </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
+            className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
           >
             <X className="h-5 w-5" />
           </button>
@@ -145,10 +142,10 @@ export const SupplierPoModal: React.FC<SupplierPoModalProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="p-3 bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900/50 rounded-xl">
               <span className="text-[11px] font-semibold uppercase tracking-wider text-rose-700 dark:text-rose-400">
-                Deficit SKUs
+                Deficit Titles
               </span>
               <div className="text-2xl font-bold font-mono text-rose-800 dark:text-rose-200 mt-0.5">
-                {orderItems.length} items
+                {orderItems.length} titles
               </div>
             </div>
 
@@ -157,7 +154,7 @@ export const SupplierPoModal: React.FC<SupplierPoModalProps> = ({
                 Total Units Required
               </span>
               <div className="text-2xl font-bold font-mono text-amber-800 dark:text-amber-200 mt-0.5">
-                {totalUnits.toLocaleString()} units
+                {totalUnits.toLocaleString()} copies
               </div>
             </div>
 
@@ -171,10 +168,10 @@ export const SupplierPoModal: React.FC<SupplierPoModalProps> = ({
             </div>
           </div>
 
-          {/* Supplier grouped breakdown */}
+          {/* Publisher grouped breakdown */}
           <div className="space-y-4">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-              Breakdown by Vendor / Supplier
+              Breakdown by Publisher / Supplier
             </h4>
 
             {Object.entries(supplierGroups).map(([supplierName, items], gIdx) => (
@@ -190,21 +187,21 @@ export const SupplierPoModal: React.FC<SupplierPoModalProps> = ({
                     </span>
                   </div>
                   <span className="text-xs font-mono font-medium text-slate-600 dark:text-slate-300">
-                    {items.length} item{items.length > 1 ? 's' : ''} · $
+                    {items.length} title{items.length > 1 ? 's' : ''} · $
                     {items.reduce((s, i) => s + i.totalCost, 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
 
                 <div className="divide-y divide-slate-100 dark:divide-slate-800">
                   {items.map(item => (
-                    <div key={item.sku} className="p-3 flex items-center justify-between gap-3 text-xs">
+                    <div key={item.isbn} className="p-3 flex items-center justify-between gap-3 text-xs">
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="font-mono font-bold text-slate-900 dark:text-slate-100">
-                            {item.sku}
+                            {item.isbn}
                           </span>
                           <span className="text-slate-600 dark:text-slate-400 truncate max-w-[280px]">
-                            {item.name}
+                            {item.title}
                           </span>
                         </div>
                         <div className="text-[11px] text-slate-400 mt-0.5">
@@ -239,10 +236,10 @@ export const SupplierPoModal: React.FC<SupplierPoModalProps> = ({
               <div className="text-xs">
                 <span className="font-semibold text-indigo-900 dark:text-indigo-200 flex items-center gap-1.5">
                   <PlusCircle className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
-                  Automatically convert these ordered quantities into Extra PO Stock
+                  Automatically convert ordered copies into Extra PO Stock
                 </span>
                 <p className="text-indigo-700/80 dark:text-indigo-300/80 mt-0.5">
-                  When enabled, marking this PO as placed will add +{totalUnits} units directly to the "Extra PO Stock" column, instantly satisfying the safety threshold in LogiFlow WMS!
+                  When enabled, marking this PO as dispatched will add +{totalUnits} units directly to the "Extra PO Stock" column, instantly satisfying the safety threshold in LogiFlow WMS!
                 </p>
               </div>
             </label>
@@ -264,16 +261,14 @@ export const SupplierPoModal: React.FC<SupplierPoModalProps> = ({
 
         {/* Footer actions */}
         <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleCopyEmail}
-              className="px-3 py-2 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1.5 transition-colors cursor-pointer"
-            >
-              {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
-              {copied ? 'Copied Order Summary' : 'Copy Email Order Text'}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={handleCopyEmail}
+            className="px-3 py-2 border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-xs font-medium text-slate-700 dark:text-slate-300 flex items-center gap-1.5 transition-colors cursor-pointer"
+          >
+            {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+            {copied ? 'Copied Order Summary' : 'Copy Email Order Text'}
+          </button>
 
           <div className="flex items-center gap-2">
             <button

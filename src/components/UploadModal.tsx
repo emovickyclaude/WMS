@@ -9,7 +9,8 @@ import {
   Package, 
   Truck, 
   ArrowRight,
-  RefreshCw
+  RefreshCw,
+  BookOpen
 } from 'lucide-react';
 import { InventoryItem, UploadType, CsvParsedRow } from '../types/inventory';
 import { parseUploadCsv, downloadSampleCsv } from '../utils/csvUtils';
@@ -20,7 +21,7 @@ interface UploadModalProps {
   type: UploadType;
   items: InventoryItem[];
   onClose: () => void;
-  onApplyUpload: (type: UploadType, updates: { sku: string; value: number }[]) => void;
+  onApplyUpload: (type: UploadType, updates: { isbn: string; value: number }[]) => void;
 }
 
 export const UploadModal: React.FC<UploadModalProps> = ({
@@ -47,8 +48,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({
   const isStockBalance = type === 'stock_balance';
   const modalTitle = isStockBalance ? 'Upload Stock Balance CSV' : 'Upload Extra PO Stock CSV';
   const formatExample = isStockBalance 
-    ? 'SKU,stock_balance\nSKU-1001,15\nSKU-1002,50' 
-    : 'SKU,extra_po_stock\nSKU-1001,10\nSKU-1004,25';
+    ? 'ISBN,stock_balance\n9781108742719,15\n9781108789943,20\n9781108819558,30' 
+    : 'ISBN,extra_po_stock\n9781108742719,10\n9781108789943,15\n9781108819558,10';
 
   const handleProcessText = (text: string, name = 'Pasted Data') => {
     setCsvContent(text);
@@ -86,7 +87,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
     if (!parsedResult) return;
     const validUpdates = parsedResult.rows
       .filter(r => r.isValid)
-      .map(r => ({ sku: r.sku, value: r.value }));
+      .map(r => ({ isbn: r.isbn, value: r.value }));
 
     if (validUpdates.length === 0) return;
 
@@ -135,8 +136,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({
               </div>
               <p className="text-xs text-slate-300">
                 {isStockBalance 
-                  ? 'Update on-hand physical warehouse balances' 
-                  : 'Update outstanding inbound purchase order quantities'}
+                  ? 'Update on-hand physical warehouse balances per ISBN' 
+                  : 'Update outstanding inbound purchase order quantities per ISBN'}
               </p>
             </div>
           </div>
@@ -181,7 +182,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
                   Click to browse or drag & drop CSV file
                 </h4>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  Format: <code className="bg-slate-200 dark:bg-slate-700 px-1.5 py-0.5 rounded font-mono text-[11px]">{isStockBalance ? 'SKU, stock_balance' : 'SKU, extra_po_stock'}</code>
+                  Format: <code className="bg-slate-200 dark:bg-slate-700 px-1.5 py-0.5 rounded font-mono text-[11px]">{isStockBalance ? 'isbn, stock_balance' : 'isbn, extra_po_stock'}</code>
                 </p>
               </div>
 
@@ -193,7 +194,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
                     e.stopPropagation();
                     downloadSampleCsv(type);
                   }}
-                  className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 font-medium"
+                  className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 font-medium cursor-pointer"
                 >
                   <Download className="h-3.5 w-3.5" /> Download {isStockBalance ? 'stock_balance.csv' : 'extra_po.csv'} Sample
                 </button>
@@ -201,7 +202,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
                 <button
                   type="button"
                   onClick={() => handleProcessText(formatExample, 'Sample Template')}
-                  className="text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-medium"
+                  className="text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 font-medium cursor-pointer"
                 >
                   Load Sample Values
                 </button>
@@ -241,7 +242,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
                   )}
                   <button
                     onClick={handleReset}
-                    className="p-1 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+                    className="p-1 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 cursor-pointer"
                     title="Change file"
                   >
                     <RefreshCw className="h-3.5 w-3.5" />
@@ -254,8 +255,8 @@ export const UploadModal: React.FC<UploadModalProps> = ({
                 <table className="w-full text-left text-xs border-collapse">
                   <thead className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 uppercase tracking-wider font-semibold sticky top-0 border-b border-slate-200 dark:border-slate-700">
                     <tr>
-                      <th className="p-2.5">SKU</th>
-                      <th className="p-2.5">Item Name</th>
+                      <th className="p-2.5">ISBN</th>
+                      <th className="p-2.5">Book Title</th>
                       <th className="p-2.5 text-right">Current</th>
                       <th className="p-2.5 text-right">New {isStockBalance ? 'Balance' : 'Extra PO'}</th>
                       <th className="p-2.5 text-right">Delta</th>
@@ -278,10 +279,10 @@ export const UploadModal: React.FC<UploadModalProps> = ({
                           }`}
                         >
                           <td className="p-2.5 font-bold text-slate-800 dark:text-slate-200">
-                            {row.sku}
+                            {row.isbn}
                           </td>
-                          <td className="p-2.5 font-sans truncate max-w-[160px] text-slate-600 dark:text-slate-400">
-                            {item ? item.name : <span className="text-amber-500 italic">Not in current inventory</span>}
+                          <td className="p-2.5 font-sans truncate max-w-[180px] text-slate-600 dark:text-slate-400">
+                            {item ? item.title : <span className="text-amber-500 italic">Not in catalogue</span>}
                           </td>
                           <td className="p-2.5 text-right text-slate-500">
                             {currentVal !== null ? currentVal : '—'}
@@ -318,7 +319,7 @@ export const UploadModal: React.FC<UploadModalProps> = ({
                 <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-xl text-xs text-amber-800 dark:text-amber-300">
                   <AlertCircle className="h-4 w-4 shrink-0 mt-0.5 text-amber-600" />
                   <div>
-                    Some SKUs in this CSV are not registered in the system yet. Only registered SKUs will have their inventory values updated. (You can add new SKUs in the "Preset Minimum Stock Setup" tab).
+                    Some ISBNs in this file are not yet registered in the inventory catalogue. Only matched books will have their values updated.
                   </div>
                 </div>
               )}

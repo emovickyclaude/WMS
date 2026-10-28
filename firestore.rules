@@ -1,0 +1,47 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN'
+      );
+    }
+
+    function isValidUserDoc(data) {
+      return data.keys().hasAll(['uid', 'email', 'role']) &&
+             data.uid is string &&
+             data.email is string &&
+             data.role in ['ADMIN', 'MANAGER', 'OPERATOR', 'PROCUREMENT', 'CUSTOM'];
+    }
+
+    match /users/{userId} {
+      // Any authenticated user can read profiles (needed for RBAC checks)
+      allow read: if isSignedIn();
+      // Users can create their own profile on registration, or Admin can create
+      allow create: if isSignedIn() && (isOwner(userId) || isAdmin()) && isValidUserDoc(request.resource.data);
+      // Admin can update any user's role and permissions; users can update their own displayName
+      allow update: if isSignedIn() && (isAdmin() || (isOwner(userId) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'permissions'])));
+      // Admin can delete users
+      allow delete: if isAdmin();
+    }
+
+    match /inventory/{isbn} {
+      allow read: if true;
+      allow write: if isSignedIn();
+    }
+
+    match /{document=**} {
+      allow read, write: if isSignedIn();
+    }
+  }
+}

@@ -4,21 +4,20 @@ import {
   Truck, 
   Upload, 
   Download, 
-  FileSpreadsheet, 
-  CheckCircle2, 
-  ArrowRight,
-  Database,
+  Database, 
   History,
-  Info
+  BookOpen
 } from 'lucide-react';
 import { InventoryItem, UploadType } from '../../types/inventory';
 import { downloadSampleCsv } from '../../utils/csvUtils';
 import { QuickAdjustDropdown } from '../QuickAdjustDropdown';
 
+import { UserPermissions } from '../../types/auth';
+
 interface DualUploadCenterTabProps {
   items: InventoryItem[];
   onOpenUploadModal: (type: UploadType) => void;
-  onQuickUpdateItem: (sku: string, type: UploadType, value: number) => void;
+  onQuickUpdateItem: (isbn: string, type: UploadType, value: number) => void;
   recentUploads: {
     id: string;
     type: UploadType;
@@ -26,6 +25,7 @@ interface DualUploadCenterTabProps {
     recordsCount: number;
     timestamp: string;
   }[];
+  permissions?: UserPermissions;
 }
 
 export const DualUploadCenterTab: React.FC<DualUploadCenterTabProps> = ({
@@ -33,6 +33,7 @@ export const DualUploadCenterTab: React.FC<DualUploadCenterTabProps> = ({
   onOpenUploadModal,
   onQuickUpdateItem,
   recentUploads,
+  permissions,
 }) => {
   return (
     <div className="space-y-6">
@@ -47,7 +48,7 @@ export const DualUploadCenterTab: React.FC<DualUploadCenterTabProps> = ({
             Dual Upload & Update Center
           </h2>
           <p className="text-xs sm:text-sm text-slate-300 mt-1">
-            Keep warehouse inventory synchronized with two dedicated ingestion channels. Upload bulk CSV files or use the quick-adjust controls below. LogiFlow immediately re-calculates safety deficits across all SKUs.
+            Keep warehouse inventory synchronized with two dedicated ingestion channels by ISBN. Upload bulk CSV files or use the single-title quick adjusters below. LogiFlow recalculates safety stock deficits instantly.
           </p>
         </div>
       </div>
@@ -94,7 +95,7 @@ export const DualUploadCenterTab: React.FC<DualUploadCenterTabProps> = ({
                   Upload Stock Balance CSV
                 </h4>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  Expected schema: <code className="bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 rounded font-mono text-[11px] text-cyan-700 dark:text-cyan-300">sku, stock_balance</code>
+                  Expected schema: <code className="bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 rounded font-mono text-[11px] text-cyan-700 dark:text-cyan-300">isbn, stock_balance</code>
                 </p>
                 <span className="mt-3 inline-block px-3 py-1 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold rounded-lg shadow-sm">
                   Launch Upload Parser
@@ -103,7 +104,7 @@ export const DualUploadCenterTab: React.FC<DualUploadCenterTabProps> = ({
 
               {/* Sample Download button */}
               <div className="flex items-center justify-between text-xs pt-1">
-                <span className="text-slate-500">Sample: <code>SKU-1001, 15</code></span>
+                <span className="text-slate-500">Sample: <code>9781108742719, 15</code></span>
                 <button
                   type="button"
                   onClick={() => downloadSampleCsv('stock_balance')}
@@ -119,7 +120,7 @@ export const DualUploadCenterTab: React.FC<DualUploadCenterTabProps> = ({
               <QuickAdjustDropdown
                 items={items}
                 type="stock_balance"
-                onUpdate={(sku, val) => onQuickUpdateItem(sku, 'stock_balance', val)}
+                onUpdate={(isbn, val) => onQuickUpdateItem(isbn, 'stock_balance', val)}
               />
             </div>
           </div>
@@ -146,7 +147,7 @@ export const DualUploadCenterTab: React.FC<DualUploadCenterTabProps> = ({
                     </h3>
                   </div>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Active supplier purchase orders expected to arrive
+                    Active publisher / supplier purchase orders expected to arrive
                   </p>
                 </div>
               </div>
@@ -165,7 +166,7 @@ export const DualUploadCenterTab: React.FC<DualUploadCenterTabProps> = ({
                   Upload Extra PO Stock CSV
                 </h4>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  Expected schema: <code className="bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 rounded font-mono text-[11px] text-purple-700 dark:text-purple-300">sku, extra_po_stock</code>
+                  Expected schema: <code className="bg-slate-200 dark:bg-slate-800 px-1.5 py-0.5 rounded font-mono text-[11px] text-purple-700 dark:text-purple-300">isbn, extra_po_stock</code>
                 </p>
                 <span className="mt-3 inline-block px-3 py-1 bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold rounded-lg shadow-sm">
                   Launch Upload Parser
@@ -174,7 +175,7 @@ export const DualUploadCenterTab: React.FC<DualUploadCenterTabProps> = ({
 
               {/* Sample Download button */}
               <div className="flex items-center justify-between text-xs pt-1">
-                <span className="text-slate-500">Sample: <code>SKU-1001, 10</code></span>
+                <span className="text-slate-500">Sample: <code>9781108742719, 10</code></span>
                 <button
                   type="button"
                   onClick={() => downloadSampleCsv('extra_po')}
@@ -190,7 +191,7 @@ export const DualUploadCenterTab: React.FC<DualUploadCenterTabProps> = ({
               <QuickAdjustDropdown
                 items={items}
                 type="extra_po"
-                onUpdate={(sku, val) => onQuickUpdateItem(sku, 'extra_po', val)}
+                onUpdate={(isbn, val) => onQuickUpdateItem(isbn, 'extra_po', val)}
               />
             </div>
           </div>

@@ -1,8 +1,8 @@
 export interface InventoryItem {
-  sku: string;
-  name: string;
+  isbn: string;
+  title: string;
   category: string;
-  presetMinStock: number; // Minimum Required Stock preset in system
+  presetMinStock: number; // Minimum Required Stock preset (50 copies benchmark)
   stockBalance: number;   // Current physical on-hand inventory
   extraPoStock: number;   // Outstanding purchase orders expected
   supplier: string;
@@ -12,12 +12,24 @@ export interface InventoryItem {
   lastUpdated: string;
 }
 
+export type UserRole = 'MASTER_ADMIN' | 'ADMIN' | 'CUSTOMER_SERVICE';
+export type UserStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export interface User {
+  id: string;
+  name: string;
+  email: string;
+  role: UserRole;
+  status: UserStatus;
+  createdAt: string;
+}
+
 export interface ShortageAnalysis {
-  shortageQty: number;      // Preset Min - Stock Balance - Extra PO
-  isDeficit: boolean;       // shortageQty > 0
+  shortageQty: number;      
+  isDeficit: boolean;       
   status: 'NOT_SUFFICIENT' | 'SUFFICIENT';
-  orderQtyNeeded: number;   // Math.max(0, shortageQty)
-  coveragePercent: number;  // (stockBalance + extraPoStock) / presetMinStock * 100
+  orderQtyNeeded: number;   
+  coveragePercent: number;  
   estimatedOrderCost: number;
 }
 
@@ -27,8 +39,8 @@ export interface PurchaseOrderRecord {
   createdAt: string;
   supplier: string;
   items: {
-    sku: string;
-    name: string;
+    isbn: string;
+    title: string;
     qtyToOrder: number;
     unitCost: number;
     totalCost: number;
@@ -42,7 +54,7 @@ export interface PurchaseOrderRecord {
 export type UploadType = 'stock_balance' | 'extra_po';
 
 export interface CsvParsedRow {
-  sku: string;
+  isbn: string;
   value: number;
   rawLine: string;
   isValid: boolean;
@@ -51,7 +63,6 @@ export interface CsvParsedRow {
 }
 
 export function calculateShortage(item: InventoryItem): ShortageAnalysis {
-  // The exact formula: Shortage = Preset Min Stock - Stock Balance - Extra PO Stock
   const shortageQty = item.presetMinStock - item.stockBalance - item.extraPoStock;
   const isDeficit = shortageQty > 0;
   const orderQtyNeeded = isDeficit ? shortageQty : 0;

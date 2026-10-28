@@ -1,0 +1,103 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile with role and admin-determined permission options",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Firebase Auth UID of the user"
+        },
+        "email": {
+          "type": "string",
+          "description": "Email address of the user"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Display name of the user"
+        },
+        "role": {
+          "type": "string",
+          "description": "Role determining base capabilities",
+          "enum": ["ADMIN", "MANAGER", "OPERATOR", "PROCUREMENT", "CUSTOM"]
+        },
+        "permissions": {
+          "type": "object",
+          "description": "Fine-grained permissions determined by admin"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp of user creation"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "ISO timestamp of last update"
+        }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "InventoryItem": {
+      "title": "InventoryItem",
+      "description": "Book inventory item with preset min stock, balance, and extra PO",
+      "type": "object",
+      "properties": {
+        "isbn": {
+          "type": "string",
+          "description": "ISBN-13 identifier"
+        },
+        "title": {
+          "type": "string",
+          "description": "Book title"
+        },
+        "category": {
+          "type": "string",
+          "description": "Subject category"
+        },
+        "presetMinStock": {
+          "type": "number",
+          "description": "Preset minimum required safety stock"
+        },
+        "stockBalance": {
+          "type": "number",
+          "description": "Physical on-hand inventory"
+        },
+        "extraPoStock": {
+          "type": "number",
+          "description": "Inbound purchase order quantity"
+        },
+        "supplier": {
+          "type": "string",
+          "description": "Publisher or distributor"
+        },
+        "unit": {
+          "type": "string",
+          "description": "Unit of measure (copies)"
+        },
+        "unitCost": {
+          "type": "number",
+          "description": "Unit cost in USD"
+        },
+        "location": {
+          "type": "string",
+          "description": "Shelf or bay location"
+        },
+        "lastUpdated": {
+          "type": "string",
+          "description": "ISO timestamp of last update"
+        }
+      },
+      "required": ["isbn", "title", "presetMinStock", "stockBalance", "extraPoStock"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profiles and admin-managed permission options"
+    },
+    "/inventory/{isbn}": {
+      "schema": "InventoryItem",
+      "description": "Warehouse book inventory documents"
+    }
+  }
+}
